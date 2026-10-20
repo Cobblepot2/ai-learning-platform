@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Markdown } from "@/components/Markdown";
-import type { ChatTurn } from "@/lib/ai/claude";
+import type { ChatTurn } from "@/lib/ai/gemini";
 import { postStream } from "@/lib/ai/stream-client";
 import { useLearner } from "@/lib/learner-store";
 

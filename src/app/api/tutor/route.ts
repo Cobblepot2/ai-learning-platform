@@ -1,5 +1,5 @@
 import { getLesson, lessonAsText } from "@/content/courses";
-import { badRequest, describeLearner, missingKey, streamText, toMessages } from "@/lib/ai/claude";
+import { badRequest, describeLearner, missingKey, streamText, toContents } from "@/lib/ai/gemini";
 
 export async function POST(req: Request) {
   const noKey = missingKey();
@@ -8,7 +8,7 @@ export async function POST(req: Request) {
   const { courseId, lessonId, profile, messages } = await req.json();
   const found = getLesson(courseId, lessonId);
   if (!found) return badRequest("Unknown lesson");
-  const history = toMessages(messages);
+  const history = toContents(messages);
   if (!history) return badRequest("Invalid messages");
 
   const system = `You are a friendly, encouraging tutor on a learning platform that teaches software development and software engineering to people from very different backgrounds.
@@ -29,5 +29,5 @@ How to teach this learner:
 - The lesson contains quizzes and code-review exercises. Don't give away their answers directly; give a hint and help the learner reason it out. If they have clearly tried already, you may explain.
 - If they ask about something outside the lesson, answer briefly and link it back to the course topic.`;
 
-  return streamText({ system, messages: history, effort: "low" });
+  return streamText({ system, contents: history });
 }

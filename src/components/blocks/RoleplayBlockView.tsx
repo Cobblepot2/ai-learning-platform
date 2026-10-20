@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { DebriefResult } from "@/app/api/roleplay/route";
 import { Markdown } from "@/components/Markdown";
 import { postJson, postStream } from "@/lib/ai/stream-client";
-import type { ChatTurn } from "@/lib/ai/claude";
+import type { ChatTurn } from "@/lib/ai/gemini";
 import { useLearner } from "@/lib/learner-store";
 import type { BlockResult, RoleplayBlock } from "@/lib/types";
 import { BlockCard, buttonPrimary, buttonSecondary } from "./BlockCard";

@@ -1,7 +1,6 @@
-import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
 import { getLesson } from "@/content/courses";
-import { FALLBACK, MAX_CHARS, MODEL, badRequest, describeLearner, getClient, missingKey } from "@/lib/ai/claude";
+import { MAX_CHARS, badRequest, describeLearner, generateJson, missingKey } from "@/lib/ai/gemini";
 
 const Feedback = z.object({
   criteria: z
@@ -22,19 +21,14 @@ export async function POST(req: Request) {
   if (block?.type !== "prompt-lab") return badRequest("Unknown exercise");
   if (typeof draft !== "string" || !draft.trim() || draft.length > MAX_CHARS) return badRequest("Invalid draft");
 
-  const response = await getClient().beta.messages.parse({
-    model: MODEL,
-    max_tokens: 4000,
-    output_config: { effort: "medium", format: betaZodOutputFormat(Feedback) },
+  const feedback = await generateJson({
+    schema: Feedback,
     system: `You review task descriptions that students write for AI coding agents. Judge each rubric item strictly but kindly, and quote the student's own words in your comments. Write feedback in the learner's preferred language; keep the improved version in English.
 
 <learner>
 ${describeLearner(profile)}
 </learner>`,
-    messages: [
-      {
-        role: "user",
-        content: `Task the student was given: ${block.task}
+    prompt: `Task the student was given: ${block.task}
 
 Rubric:
 ${block.rubric.map((r, i) => `${i + 1}. ${r}`).join("\n")}
@@ -42,12 +36,9 @@ ${block.rubric.map((r, i) => `${i + 1}. ${r}`).join("\n")}
 <student_draft>
 ${draft}
 </student_draft>`,
-      },
-    ],
-    ...FALLBACK,
   });
 
-  if (!response.parsed_output) return Response.json({ error: "Could not review this draft." }, { status: 502 });
-  const result: PromptFeedback = { ...response.parsed_output, rubric: block.rubric };
+  if (!feedback) return Response.json({ error: "Could not review this draft." }, { status: 502 });
+  const result: PromptFeedback = { ...feedback, rubric: block.rubric };
   return Response.json(result);
 }

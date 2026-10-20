@@ -22,7 +22,7 @@ This is the prototype for the week 8–9 project discussion meeting.
 
 - Next.js 15 (App Router) + TypeScript + Tailwind CSS 4
 - Supabase (Auth + Postgres with row-level security)
-- Claude API via `@anthropic-ai/sdk`, called only from server routes so the key never reaches the browser
+- Google Gemini API via `@google/genai` (model set by `GEMINI_MODEL`, default `gemini-3.5-flash-lite`), called only from server routes so the key never reaches the browser
 - Deploy target: Vercel
 
 ## Local setup
@@ -33,7 +33,7 @@ cp .env.example .env.local   # then fill in the values
 npm run dev                  # http://localhost:3000
 ```
 
-`ANTHROPIC_API_KEY` is required for the AI features. Without Supabase variables the app still runs and stores progress in the browser.
+`GEMINI_API_KEY` is required for the AI features. Without Supabase variables the app still runs and stores progress in the browser.
 
 ### Supabase
 
@@ -57,7 +57,7 @@ src/
   components/          UI; components/blocks = one component per activity type
   content/courses/     course content as typed data
   lib/
-    ai/claude.ts       Claude client, learner description, streaming helper
+    ai/gemini.ts       Gemini client, learner description, streaming + JSON helpers
     learner-store.tsx  profile + progress (localStorage, Supabase sync)
     types.ts           shared types, including the lesson block schema
 supabase/migrations/   database schema
