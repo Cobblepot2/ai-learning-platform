@@ -19,7 +19,7 @@ export function LessonPlayer({ course, lesson, preview = false }: { course: Cour
   const [previewResults, setPreviewResults] = useState<Record<string, BlockResult>>({});
   const [completionError, setCompletionError] = useState("");
   const [completing, setCompleting] = useState(false);
-  const { progress, recordBlock, completeLesson, noteServerLessonComplete } = useLearner();
+  const { ready, progress, recordBlock, completeLesson, noteServerLessonComplete } = useLearner();
   const [tutorOpen, setTutorOpen] = useState(false);
   const lessonProgress = progress[`${course.id}/${lesson.id}`];
   const results = preview ? previewResults : lessonProgress?.blocks ?? {};
@@ -58,6 +58,8 @@ export function LessonPlayer({ course, lesson, preview = false }: { course: Cour
         return <PromptLabBlockView courseId={course.id} lessonId={lesson.id} block={block} {...common} />;
     }
   }
+
+  if (!ready) return <p role="status" className="mx-auto max-w-6xl px-4 py-8">Loading your progress…</p>;
 
   return (
     <div className="mx-auto flex max-w-6xl gap-6 px-4 py-8">
@@ -107,7 +109,7 @@ export function LessonPlayer({ course, lesson, preview = false }: { course: Cour
                   const data = await res.json(); if (!res.ok) throw new Error(data.error);
                   noteServerLessonComplete(course.id, lesson.id);
                 } else {
-                  completeLesson(course.id, lesson.id);
+                  await completeLesson(course.id, lesson.id);
                 }
               } catch(e) { setCompletionError((e as Error).message); } finally { setCompleting(false); }
             }}>
