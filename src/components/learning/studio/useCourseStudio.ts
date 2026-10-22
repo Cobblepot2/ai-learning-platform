@@ -16,8 +16,15 @@ import {
   type ActivityType,
   type LearningActivity,
 } from "@/lib/learning/registry";
+import type { SimulationDesignRequest } from "@/lib/learning/generation";
 
 export type StudioTab = "edit" | "ai" | "preview" | "students";
+
+export type SimulationProposal = {
+  lesson: number;
+  activity: LearningActivity;
+  reason: string;
+};
 
 export type StudioOptions = {
   teacher?: boolean;
@@ -95,6 +102,8 @@ export function useCourseStudio({
     progress: number;
   } | null>(null);
   const [proposal, setProposal] = useState<ActivityProposal | null>(null);
+  const [simulationProposal, setSimulationProposal] =
+    useState<SimulationProposal | null>(null);
   const [instruction, setInstruction] = useState("");
   const [tab, setTab] = useState<StudioTab>(initialTab);
   const [previewIndex, setPreviewIndex] = useState(0);
@@ -127,6 +136,7 @@ export function useCourseStudio({
     setCandidate(null);
     setHiddenLessons([]);
     setProposal(null);
+    setSimulationProposal(null);
     setTab(initialTab);
     setGoals(goalsFor(row));
   }
@@ -289,13 +299,17 @@ export function useCourseStudio({
   }
 
   function addActivity(lessonIndex: number, type: ActivityType) {
+    insertActivity(lessonIndex, newActivity(type));
+  }
+
+  function insertActivity(lessonIndex: number, activity: LearningActivity) {
     setDocument((prev) =>
       prev
         ? {
             ...prev,
             lessons: prev.lessons.map((lesson, i) =>
               i === lessonIndex
-                ? { ...lesson, blocks: [...lesson.blocks, newActivity(type)] }
+                ? { ...lesson, blocks: [...lesson.blocks, activity] }
                 : lesson,
             ),
           }
@@ -514,6 +528,55 @@ export function useCourseStudio({
     });
   }
 
+  /**
+   * Asks the AI designer for a simulation. A "not suitable" answer is shown to
+   * the teacher as guidance, not turned into a broken activity.
+   */
+  async function designSimulation(
+    lessonIndex: number,
+    design: SimulationDesignRequest,
+  ) {
+    const result = await request("/api/builder", "POST", {
+      action: "simulation",
+      request: design,
+    });
+    if (!result.suitable) {
+      setSimulationProposal(null);
+      setMessage(result.reason);
+      return false;
+    }
+    setSimulationProposal({
+      lesson: lessonIndex,
+      activity: result.activity,
+      reason: result.reason,
+    });
+    setMessage(
+      "Review the generated simulation before accepting. It is not inserted until you accept it.",
+    );
+    return true;
+  }
+
+  function acceptSimulation() {
+    if (!document || !simulationProposal) return;
+    const lesson = document.lessons[simulationProposal.lesson];
+    if (!lesson) {
+      setMessage("That lesson no longer exists. Generate the simulation again.");
+      setSimulationProposal(null);
+      return;
+    }
+    insertActivity(simulationProposal.lesson, simulationProposal.activity);
+    setSimulationProposal(null);
+    setTab("edit");
+    setMessage(
+      `Simulation added to “${lesson.title}”. Adjust it in the lesson editor, preview it, then save.`,
+    );
+  }
+
+  function rejectSimulation() {
+    setSimulationProposal(null);
+    setMessage("Simulation proposal discarded.");
+  }
+
   function acceptProposal() {
     if (!document || !proposal) return;
     const li = document.lessons.findIndex((lesson) =>
@@ -556,6 +619,7 @@ export function useCourseStudio({
     hiddenLessons,
     impact,
     proposal,
+    simulationProposal,
     instruction,
     tab,
     previewIndex,
@@ -571,6 +635,7 @@ export function useCourseStudio({
     setCandidate,
     setHiddenLessons,
     setProposal,
+    setSimulationProposal,
     setInstruction,
     setTab,
     setPreviewIndex,
@@ -588,6 +653,7 @@ export function useCourseStudio({
     removeLesson,
     moveLesson,
     addActivity,
+    insertActivity,
     removeActivity,
     moveActivity,
     replaceActivityType,
@@ -599,6 +665,9 @@ export function useCourseStudio({
     rejectAll,
     proposeRevision,
     acceptProposal,
+    designSimulation,
+    acceptSimulation,
+    rejectSimulation,
   };
 }
 

@@ -77,6 +77,49 @@ function lines(activity: LearningActivity): { label: string; value: string; mark
         { label: "Rubric", value: activity.config.rubric.map((item) => `• ${item}`).join("\n") },
         { label: "Character instructions", value: activity.config.persona },
       ];
+    case "simulation":
+      return [
+        { label: "Title", value: activity.config.title },
+        { label: "Scenario", value: activity.config.scenario.description, markdown: true },
+        {
+          label: "Objectives",
+          value: activity.config.scenario.objectives.map((item) => `• ${item}`).join("\n"),
+        },
+        { label: "Your role", value: activity.config.scenario.participantRole },
+        { label: "Persona", value: activity.config.scenario.persona || "—" },
+        {
+          label: "Variables",
+          value: activity.config.variables
+            .map(
+              (variable) =>
+                `${variable.visible === false ? "(hidden) " : ""}${variable.label} (${variable.type})`,
+            )
+            .join(", "),
+        },
+        {
+          label: "Stages",
+          value: activity.config.stages
+            .map(
+              (stage) =>
+                `${stage.title}${stage.ending ? ` → ${stage.ending.outcome}` : ""}: ${stage.actions.map((action) => action.label).join(", ") || "ending"}`,
+            )
+            .join("\n"),
+        },
+        {
+          label: "Completion",
+          value: `At most ${activity.config.completion.maxSteps} steps. ${
+            activity.config.completion.rules.length
+              ? activity.config.completion.rules
+                  .map((rule) => `${rule.outcome}: ${rule.summary}`)
+                  .join("\n")
+              : "Endings determine the result."
+          }`,
+        },
+        {
+          label: "Rubric",
+          value: activity.config.rubric.map((item) => `• ${item.criterion}`).join("\n"),
+        },
+      ];
     default: {
       const unreachable: never = activity;
       return [{ label: "Activity", value: String(unreachable) }];

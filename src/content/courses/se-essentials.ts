@@ -5,6 +5,7 @@ import {
   conversation,
   ordering,
   reading,
+  simulation,
 } from "./authoring";
 
 export const seEssentials: Course = {
@@ -128,6 +129,307 @@ Requirements are usually split into **functional** (what the system does: "custo
           opening:
             "Ah, hello, hello! Sit, sit. So my nephew says you can make me an app? Like the big coffee chains have. How much does something like that cost?",
           minTurns: 4,
+        }),
+        simulation("release-priority", {
+          schemaVersion: 1,
+          title: "Prioritise the first release",
+          scenario: {
+            description:
+              "You have just finished the clinic interview. The manager wants fewer missed morning appointments, but there is no agreed product yet. You have one small delivery team and a fixed date for a pilot.",
+            objectives: [
+              "Choose a first increment that respects the clinic constraints",
+              "Balance customer value against delivery effort and trust",
+              "Explain the trade-off behind the decision",
+            ],
+            initialSituation:
+              "The clinic books appointments in a shared spreadsheet. Two reception staff share one desk, mornings are busiest, the budget is small, and nobody has approved a patient-facing app. Your team can deliver one small increment before the pilot date.",
+            participantRole:
+              "You are the product lead for a two-week discovery and delivery cycle.",
+            persona:
+              "The clinic manager (cautious, budget-conscious) and a solo developer (optimistic about scope).",
+          },
+          variables: [
+            {
+              id: "value",
+              type: "number",
+              label: "Customer value",
+              initial: 0,
+              min: 0,
+              max: 10,
+              unit: "pts",
+              visible: true,
+              description: "How much the increment improves the morning queue.",
+            },
+            {
+              id: "effort",
+              type: "number",
+              label: "Delivery effort",
+              initial: 0,
+              min: 0,
+              max: 10,
+              unit: "pts",
+              visible: true,
+              description: "Work the small team must absorb before the pilot date.",
+            },
+            {
+              id: "trust",
+              type: "number",
+              label: "Stakeholder trust",
+              initial: 5,
+              min: 0,
+              max: 10,
+              visible: true,
+              description: "The manager's confidence that you will deliver what you promise.",
+            },
+            {
+              id: "scope",
+              type: "enum",
+              label: "Committed scope",
+              initial: "unset",
+              options: ["unset", "shared-view", "full-app"],
+              visible: true,
+            },
+            {
+              id: "risk",
+              type: "enum",
+              label: "Biggest known risk",
+              initial: "unclear",
+              options: ["unclear", "scope-creep", "technical"],
+              visible: true,
+            },
+          ],
+          startStage: "triage",
+          stages: [
+            {
+              id: "triage",
+              title: "Choose the first move",
+              narrative:
+                "The manager asks what you can show before the pilot. You have not promised a mobile app. What do you commit to?",
+              actions: [
+                {
+                  id: "shared-view",
+                  label: "Ship a shared availability view",
+                  description:
+                    "Reception keeps owning bookings, but everyone can see which morning slots are taken.",
+                  effects: [
+                    { op: "add", variable: "value", value: 4 },
+                    { op: "add", variable: "effort", value: 3 },
+                    { op: "set", variable: "scope", value: "shared-view" },
+                  ],
+                  feedback:
+                    "You choose the smallest change that addresses the visible problem. Effort stays manageable and the manager can still correct the design.",
+                  nextStage: "review",
+                },
+                {
+                  id: "full-app",
+                  label: "Promise the full patient app",
+                  description:
+                    "Accounts, reminders and payments, delivered before the pilot.",
+                  effects: [
+                    { op: "add", variable: "value", value: 6 },
+                    { op: "add", variable: "effort", value: 9 },
+                    { op: "add", variable: "trust", value: -3 },
+                    { op: "set", variable: "scope", value: "full-app" },
+                    { op: "set", variable: "risk", value: "scope-creep" },
+                  ],
+                  feedback:
+                    "The promise is attractive but large. You spent effort you do not have and signalled that you will deliver beyond the agreed budget.",
+                  nextStage: "review",
+                },
+                {
+                  id: "more-discovery",
+                  label: "Run one more discovery session",
+                  description:
+                    "Spend a day with reception before committing to any build.",
+                  effects: [
+                    { op: "add", variable: "trust", value: 2 },
+                    { op: "add", variable: "effort", value: 1 },
+                  ],
+                  feedback:
+                    "You buy information instead of guessing. It costs a little effort but gives the team evidence for the next decision.",
+                  nextStage: "discovery",
+                },
+              ],
+            },
+            {
+              id: "discovery",
+              title: "What the desk actually needs",
+              narrative:
+                "A day with reception shows that most missed appointments happen when two people edit the same row at once. The manager still cannot approve a patient app, but a shared view would remove the double-booking.",
+              actions: [
+                {
+                  id: "cut-scope",
+                  label: "Cut scope to the shared view",
+                  description:
+                    "Keep the promise small and test the workflow with reception first.",
+                  effects: [
+                    { op: "add", variable: "value", value: 4 },
+                    { op: "add", variable: "effort", value: 3 },
+                    { op: "set", variable: "scope", value: "shared-view" },
+                    { op: "set", variable: "risk", value: "technical" },
+                  ],
+                  feedback:
+                    "The evidence supports a narrow, testable change. You name the remaining technical risk instead of hiding it.",
+                  nextStage: "review",
+                },
+                {
+                  id: "promise-everything",
+                  label: "Promise the full app anyway",
+                  description:
+                    "Use the discovery meeting to push the original patient app.",
+                  effects: [
+                    { op: "add", variable: "value", value: 6 },
+                    { op: "add", variable: "effort", value: 9 },
+                    { op: "add", variable: "trust", value: -4 },
+                    { op: "set", variable: "scope", value: "full-app" },
+                  ],
+                  feedback:
+                    "You heard a real constraint and still committed beyond it. The manager now expects a product the budget cannot support.",
+                  nextStage: "review",
+                },
+              ],
+            },
+            {
+              id: "review",
+              title: "Before the pilot",
+              narrative:
+                "The pilot date is close. Review what you committed to and choose a responsible next step.",
+              actions: [
+                {
+                  id: "release-and-measure",
+                  label: "Release the shared view and measure the queue",
+                  availableWhen: {
+                    kind: "compare",
+                    variable: "scope",
+                    op: "eq",
+                    value: "shared-view",
+                  },
+                  description:
+                    "Measure missed appointments for two weeks and agree what would count as success.",
+                  effects: [
+                    { op: "add", variable: "value", value: 2 },
+                    { op: "add", variable: "trust", value: 2 },
+                  ],
+                  feedback:
+                    "You ship a small increment with a measurable outcome. The manager can judge it on evidence, not on a promise.",
+                  nextStage: "success-ending",
+                },
+                {
+                  id: "pilot",
+                  label: "Run a one-week staff pilot before releasing",
+                  availableWhen: {
+                    kind: "compare",
+                    variable: "scope",
+                    op: "eq",
+                    value: "shared-view",
+                  },
+                  description:
+                    "Let reception use the shared view in parallel with the spreadsheet.",
+                  effects: [
+                    { op: "add", variable: "trust", value: 1 },
+                    { op: "add", variable: "effort", value: 2 },
+                  ],
+                  feedback:
+                    "You trade a week of effort for lower operational risk. The cautious choice is defensible, but the queue does not improve yet.",
+                  nextStage: "partial-ending",
+                },
+                {
+                  id: "add-accounts",
+                  label: "Add patient accounts before releasing",
+                  availableWhen: {
+                    kind: "compare",
+                    variable: "scope",
+                    op: "eq",
+                    value: "full-app",
+                  },
+                  description:
+                    "Stretch the team further to make the big promise look complete.",
+                  effects: [
+                    { op: "add", variable: "effort", value: 4 },
+                    { op: "add", variable: "trust", value: -1 },
+                    { op: "set", variable: "risk", value: "scope-creep" },
+                  ],
+                  feedback:
+                    "Every extra feature adds risk to the pilot. The core queue problem is still unmeasured.",
+                  nextStage: "failure-ending",
+                },
+              ],
+            },
+            {
+              id: "success-ending",
+              title: "A measurable first release",
+              narrative:
+                "The shared view ships on time. Reception can see the morning slots at a glance, and the manager has a number to watch.",
+              actions: [],
+              ending: {
+                outcome: "success",
+                summary:
+                  "You chose the smallest increment that addressed the real problem, respected the budget, and gave the clinic evidence for the next decision.",
+              },
+            },
+            {
+              id: "partial-ending",
+              title: "Safe, but not yet better",
+              narrative:
+                "The pilot runs without incidents, but the morning queue is unchanged because the team is still learning the new view.",
+              actions: [],
+              ending: {
+                outcome: "partial",
+                summary:
+                  "You protected operational trust but delayed the customer outcome. A second week with a clear success measure would turn the pilot into evidence.",
+              },
+            },
+            {
+              id: "failure-ending",
+              title: "The promise outruns the team",
+              narrative:
+                "The pilot date arrives with accounts half-built and the original double-booking still happening. The manager asks why the team did not start smaller.",
+              actions: [],
+              ending: {
+                outcome: "failure",
+                summary:
+                  "The commitment exceeded the constraints you had already heard. A narrow, testable increment would have reduced risk and preserved trust.",
+              },
+            },
+          ],
+          completion: {
+            maxSteps: 5,
+            rules: [],
+            exhaustedSummary:
+              "The pilot date passed without a final decision. In practice, a first release needs an explicit scope and a measurable outcome.",
+          },
+          rubric: [
+            {
+              id: "evidence",
+              criterion: "Chooses an increment supported by what the clinic said",
+              description: "The decision follows from the interview facts, not a preferred technology.",
+            },
+            {
+              id: "constraints",
+              criterion: "Respects effort, budget and trust",
+              description: "The plan is deliverable by the team that exists.",
+            },
+            {
+              id: "outcome",
+              criterion: "Defines how success will be measured",
+              description: "The release has a visible effect on the morning queue.",
+            },
+            {
+              id: "trade-off",
+              criterion: "Names the risk being accepted",
+              description: "The recommendation is honest about what is still unknown.",
+            },
+          ],
+          debrief: {
+            success:
+              "You separated the request from the problem and delivered the smallest change that could be evaluated. That is the core of prioritisation: value, effort and trust are traded explicitly.",
+            partial:
+              "Your caution was reasonable, but a pilot without a success measure is only a delay. Decide in advance which number would tell you the queue improved.",
+            failure:
+              "A large promise made the team's constraints disappear on paper, not in reality. Starting with a narrow workflow would have produced evidence at a fraction of the effort.",
+            incomplete:
+              "The scenario ended before a release decision. In a real project, an explicit first increment and a success measure matter more than keeping every option open.",
+          },
         }),
         reading(
           "wrap",

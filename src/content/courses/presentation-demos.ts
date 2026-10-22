@@ -5,6 +5,7 @@ import {
   quiz,
   reading,
   response,
+  simulation,
 } from "./authoring";
 
 /** Published static demos for the group presentation. Same activity registry as teacher-authored courses. */
@@ -309,6 +310,343 @@ Avoid promising work you cannot finish. Name the trade-off in one sentence.`,
               "States a compromise that matches the facts",
               "Names the handoff time clearly",
             ],
+          }),
+        ],
+      },
+    ],
+  },
+  {
+    id: "demo-business-negotiation",
+    title: "Scenario C · Supplier negotiation",
+    tagline: "Trade price, reliability and relationship in one live decision.",
+    description:
+      "A business-negotiation clinic using the same simulation schema and engine as the software-engineering demo. Renew a supplier contract by choosing what to prioritise, when to reveal information, and what kind of deal you can defend.",
+    domain: "Business Negotiation",
+    targetAudience: "Business, operations and procurement students",
+    prerequisites: ["No technical background required"],
+    objectives: [
+      "Separate a supplier's position from its underlying interests",
+      "Trade across price, term and reliability instead of arguing one number",
+      "Recognise when your leverage supports walking away",
+    ],
+    language: "English",
+    level: "Intermediate",
+    estimatedMinutes: 20,
+    emoji: "🤝",
+    audience: ["general", "non_cs", "cs_student", "career_switcher"],
+    lessons: [
+      {
+        id: "biz-supplier-negotiation",
+        title: "Renew the supplier contract",
+        summary:
+          "A stateful negotiation: every move changes price, reliability, relationship or your alternatives.",
+        minutes: 20,
+        objectives: [
+          "Choose a first move that protects the relationship",
+          "Use contract term or an alternative quote as leverage",
+          "Close a deal you can defend to operations",
+        ],
+        blocks: [
+          reading(
+            "biz-supplier-reading",
+            `## Positions and interests, with numbers attached
+
+Your supplier asks for a **12% price increase** before the annual renewal. Your budget only covers **5%**. Reliability has slipped from 9 to 7 out of 10, and late deliveries are disrupting the bakery's morning production.
+
+A second supplier has quoted **3% more than today's price**, but switching costs two weeks of onboarding and a new delivery schedule. That quote is useful leverage only if you are genuinely prepared to use it.
+
+Before the meeting, decide which of these you can trade: price, contract length, delivery guarantees, or the relationship itself. A good deal does not win every variable; it protects the ones that matter most to operations.`,
+          ),
+          simulation("supplier-renewal", {
+            schemaVersion: 1,
+            title: "Negotiate the supplier renewal",
+            scenario: {
+              description:
+                "You run operations for a bakery chain. The current supplier wants a 12% increase at renewal. Your budget supports 5%, late deliveries are hurting morning production, and a competing quote exists but switching has a cost.",
+              objectives: [
+                "Keep the annual increase within a defensible range",
+                "Improve delivery reliability for morning production",
+                "Preserve a working relationship with the supplier",
+              ],
+              initialSituation:
+                "The renewal meeting starts in ten minutes. The supplier's opening position is 12%. You have today's delivery data and an alternative quote on paper, but no agreed deal.",
+              participantRole:
+                "You are the operations lead for the bakery chain, responsible for cost and for keeping morning production running.",
+              persona:
+                "The supplier's account manager: friendly, under pressure from their own costs, and willing to trade term for price.",
+            },
+            variables: [
+              {
+                id: "price",
+                type: "number",
+                label: "Proposed increase",
+                initial: 12,
+                min: 0,
+                max: 20,
+                unit: "%",
+                visible: true,
+                description: "The annual price increase currently on the table.",
+              },
+              {
+                id: "reliability",
+                type: "number",
+                label: "Delivery reliability",
+                initial: 7,
+                min: 0,
+                max: 10,
+                visible: true,
+                description: "On-time delivery score; low scores disrupt morning production.",
+              },
+              {
+                id: "relationship",
+                type: "number",
+                label: "Relationship",
+                initial: 6,
+                min: 0,
+                max: 10,
+                visible: true,
+                description: "How willing the supplier is to solve problems with you.",
+              },
+              {
+                id: "term",
+                type: "enum",
+                label: "Contract term",
+                initial: "12 months",
+                options: ["12 months", "24 months"],
+                visible: true,
+              },
+              {
+                id: "alternative",
+                type: "boolean",
+                label: "Alternative quote ready",
+                initial: false,
+                visible: true,
+                description: "Whether you have prepared a credible switching option.",
+              },
+            ],
+            startStage: "opening",
+            stages: [
+              {
+                id: "opening",
+                title: "The opening exchange",
+                narrative:
+                  "The account manager opens with 12% and mentions rising fuel costs. You have not shown your hand. What do you do first?",
+                actions: [
+                  {
+                    id: "anchor",
+                    label: "Anchor on the 5% budget limit",
+                    description:
+                      "State plainly that the budget supports 5% and wait for their response.",
+                    effects: [
+                      { op: "set", variable: "price", value: 8 },
+                      { op: "add", variable: "relationship", value: -1 },
+                    ],
+                    feedback:
+                      "The anchor moves the number but makes the conversation more positional. You have not learned what the supplier actually needs.",
+                    nextStage: "trade",
+                  },
+                  {
+                    id: "ask-drivers",
+                    label: "Ask what is driving the increase",
+                    description:
+                      "Explore their cost pressures and delivery constraints before countering.",
+                    effects: [
+                      { op: "add", variable: "relationship", value: 2 },
+                    ],
+                    feedback:
+                      "You learn that fuel and a driver shortage are behind the request. Understanding the interest gives you something to trade, not just a number to refuse.",
+                    nextStage: "understand",
+                  },
+                  {
+                    id: "accept-and-push",
+                    label: "Accept 12% but demand perfect delivery",
+                    description:
+                      "Trade price for a strict service guarantee.",
+                    effects: [
+                      { op: "set", variable: "price", value: 12 },
+                      { op: "add", variable: "reliability", value: 2 },
+                      { op: "add", variable: "relationship", value: -1 },
+                    ],
+                    feedback:
+                      "You buy service with money. Reliability improves, but the budget gap remains and the supplier knows you will pay to avoid conflict.",
+                    nextStage: "trade",
+                  },
+                ],
+              },
+              {
+                id: "understand",
+                title: "What the supplier needs",
+                narrative:
+                  "Their margin is squeezed by fuel and driver costs. They value a longer contract because it lets them plan routes. Your alternative quote is still in your bag.",
+                actions: [
+                  {
+                    id: "offer-term",
+                    label: "Offer a 24-month term for a lower increase",
+                    description:
+                      "Give them planning certainty in exchange for a smaller increase.",
+                    effects: [
+                      { op: "set", variable: "term", value: "24 months" },
+                      { op: "add", variable: "price", value: -4 },
+                      { op: "add", variable: "relationship", value: 1 },
+                    ],
+                    feedback:
+                      "You trade across variables instead of arguing about one. The supplier gets stability; you get a price closer to budget.",
+                    nextStage: "trade",
+                  },
+                  {
+                    id: "mention-alternative",
+                    label: "Mention the alternative supplier quote",
+                    description:
+                      "Make your outside option visible without pretending you have already switched.",
+                    effects: [
+                      { op: "set", variable: "alternative", value: true },
+                      { op: "add", variable: "relationship", value: -2 },
+                    ],
+                    feedback:
+                      "Leverage is now real, but the relationship cools. You can walk away, and the supplier knows it.",
+                    nextStage: "trade",
+                  },
+                ],
+              },
+              {
+                id: "trade",
+                title: "Close the deal",
+                narrative:
+                  "The supplier asks for your final position. Operations needs a cost you can defend and a delivery promise you can plan around.",
+                actions: [
+                  {
+                    id: "agree-eight",
+                    label: "Agree 8% with service credits for late deliveries",
+                    availableWhen: {
+                      kind: "compare",
+                      variable: "price",
+                      op: "lte",
+                      value: 8,
+                    },
+                    description:
+                      "Accept the number on the table and attach a consequence to missed deliveries.",
+                    effects: [
+                      { op: "add", variable: "reliability", value: 2 },
+                      { op: "add", variable: "relationship", value: 1 },
+                    ],
+                    feedback:
+                      "You close within a defensible range and convert the delivery complaint into a concrete commitment.",
+                    nextStage: "success-ending",
+                  },
+                  {
+                    id: "agree-twelve",
+                    label: "Agree 12% in exchange for guaranteed delivery",
+                    availableWhen: {
+                      kind: "compare",
+                      variable: "price",
+                      op: "gt",
+                      value: 8,
+                    },
+                    description:
+                      "Pay the full increase but make reliability the supplier's problem.",
+                    effects: [
+                      { op: "add", variable: "reliability", value: 3 },
+                      { op: "add", variable: "relationship", value: -1 },
+                    ],
+                    feedback:
+                      "Delivery improves, but you spent the budget headroom and taught the supplier that price pressure works.",
+                    nextStage: "partial-ending",
+                  },
+                  {
+                    id: "walk-away",
+                    label: "Walk away and switch suppliers",
+                    availableWhen: {
+                      kind: "compare",
+                      variable: "alternative",
+                      op: "eq",
+                      value: true,
+                    },
+                    description:
+                      "Use the alternative quote and accept the onboarding cost.",
+                    effects: [
+                      { op: "add", variable: "relationship", value: -4 },
+                    ],
+                    feedback:
+                      "You exercised your outside option. Switching may be right, but the two-week onboarding now lands on morning production.",
+                    nextStage: "failure-ending",
+                  },
+                ],
+              },
+              {
+                id: "success-ending",
+                title: "A deal operations can plan around",
+                narrative:
+                  "The supplier accepts 8% with service credits. Your finance lead can sign it, and morning production has a delivery commitment it can hold the supplier to.",
+                actions: [],
+                ending: {
+                  outcome: "success",
+                  summary:
+                    "You traded contract certainty for price, protected the budget, and turned a complaint about lateness into a measurable commitment.",
+                },
+              },
+              {
+                id: "partial-ending",
+                title: "Reliable, but expensive",
+                narrative:
+                  "Deliveries improve, but the 12% increase consumes the headroom you needed for the new route. Finance approves it reluctantly.",
+                actions: [],
+                ending: {
+                  outcome: "partial",
+                  summary:
+                    "You solved the operational symptom at the cost of the budget. A longer term or a credible alternative could have moved the price without losing reliability.",
+                },
+              },
+              {
+                id: "failure-ending",
+                title: "Leverage without a landing plan",
+                narrative:
+                  "You walk away. The alternative supplier is competent but needs two weeks to onboard, and the first week of the transition is chaotic.",
+                actions: [],
+                ending: {
+                  outcome: "failure",
+                  summary:
+                    "The outside option was real, but you used it without securing the transition. Leverage only helps when the alternative is genuinely executable.",
+                },
+              },
+            ],
+            completion: {
+              maxSteps: 4,
+              rules: [],
+              exhaustedSummary:
+                "The meeting ended without a signed renewal. Operations still needs a price it can defend and a delivery promise it can plan around.",
+            },
+            rubric: [
+              {
+                id: "interests",
+                criterion: "Explores the supplier's interests before bargaining",
+                description: "Uses questions, not only counter-offers.",
+              },
+              {
+                id: "trade",
+                criterion: "Trades across more than one variable",
+                description: "Connects price to term, reliability or relationship.",
+              },
+              {
+                id: "leverage",
+                criterion: "Uses leverage only when it can be executed",
+                description: "An alternative quote is a plan, not a threat.",
+              },
+              {
+                id: "outcome",
+                criterion: "Closes a deal defensible to operations",
+                description: "The final agreement protects cost and morning production.",
+              },
+            ],
+            debrief: {
+              success:
+                "You found a trade rather than a winner: the supplier gained planning certainty, operations gained price discipline and a service commitment. That is the core of an integrative negotiation.",
+              partial:
+                "You fixed reliability but paid for it with the budget you needed elsewhere. Next time, ask what the supplier values besides price before making a concession.",
+              failure:
+                "Walking away can be correct, but only after checking that the alternative is executable. Onboarding cost and transition risk belong in the decision, not outside it.",
+              incomplete:
+                "The meeting ran out of time without a decision. A prepared range, a trade list and a clear walk-away point make a renewal meeting closeable.",
+            },
           }),
         ],
       },

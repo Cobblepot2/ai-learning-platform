@@ -12,6 +12,7 @@ import {
   type LearningFeedback,
 } from "@/lib/learning/registry";
 import type { BlockResult, LessonBlock } from "@/lib/types";
+import { SimulationView } from "@/components/learning/SimulationView";
 
 type AttemptRow = {
   activity_id?: string;
@@ -464,6 +465,7 @@ const renderers: {
   "code-review": (props) => <CodeReviewView {...props} />,
   response: (props) => <ResponseView {...props} />,
   conversation: (props) => <ConversationView {...props} />,
+  simulation: (props) => <SimulationView {...props} />,
 };
 
 export function ActivityView({

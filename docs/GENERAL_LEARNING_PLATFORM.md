@@ -43,11 +43,12 @@ renderer/editor/evaluation metadata. Supported activities:
 | code-review | Find the planted line in a code sample | Deterministic line check |
 | response | Writing, reflection, scenario or roleplay | Evidence-based rubric feedback and next step, no numeric score |
 | conversation | Multi-turn character conversation | Character reply plus rubric feedback once the minimum turns are met |
+| simulation | Declarative stateful branching scenario | Server-applied rules; deterministic outcome and rubric plus optional AI debrief |
 
-`response` and `conversation` are the only types that call a model. The next
+`response`, `conversation` and the optional simulation debrief call a model. The next
 submission includes recent attempts, so students can clarify, revise and improve.
-This is not a branching simulation engine. No AI-supplied React/JavaScript is
-executed.
+Simulations run on a bounded declarative engine described below; no AI-supplied
+React/JavaScript is executed.
 
 Deterministic activities in static catalogue courses can be practised without
 an account; their feedback is returned but not written to the gradebook.
@@ -59,6 +60,60 @@ To add an activity, add its validator/defaults/capabilities and an envelope to
 it does not need a new course-level workflow. Special interactions may need a
 specialised editor/view. The registry is intentionally compile-time, not a
 third-party plugin loader. Invalid types, versions and configs fail validation.
+
+## Declarative simulations
+
+The `simulation` activity is not a general-purpose script runtime. Its config is
+strictly validated by Zod in `src/lib/learning/simulation/schema.ts`, then by
+cross-field checks in `simulationProblems`:
+
+- **Scenario**: title, description, objectives, initial situation, participant
+  role and an optional AI persona.
+- **Variables**: up to 8, each a bounded number, boolean or enum. Values can be
+  hidden from the student projection.
+- **Stages**: 2–16 decision or ending stages. A decision stage has 1–6 actions;
+  an ending stage has an outcome and summary and no actions. At most 60 actions
+  exist across a simulation.
+- **Actions**: label, optional description, optional availability condition,
+  up to 6 effects, feedback and an optional `nextStage`.
+- **Conditions**: a comparison (`eq`, `neq`, `gt`, `gte`, `lt`, `lte`) or one
+  and/or group of 2–6 comparisons. Numeric comparisons only apply to numbers.
+- **Effects**: `add` (numbers only) or `set`, clamped to the variable's range.
+- **Completion**: `maxSteps`, optional state rules, and a summary for exhaustion.
+- **Rubric and debrief**: criteria plus text for success, partial, failure and
+  incomplete outcomes.
+
+Validation rejects duplicate IDs, unknown variable/stage references, invalid
+ranges, unsupported value types, unreachable stages, endings with actions,
+actions that neither change state nor move stages, a start stage with no
+initially available action, and a simulation with no possible success. These
+are declared data checks, not an interpreter.
+
+`src/lib/learning/simulation/engine.ts` is a pure state machine shared by the
+student player and teacher preview. `applySimulationAction` re-checks the current
+stage, action availability and status before applying effects. The server route
+`/api/simulations` stores the session in `simulation_sessions`, returns only a
+public projection (current stage, visible variables, available actions and
+history), and rejects stale versions with 409. Clients submit only an action id;
+they cannot set variables, stage, score or outcome. On completion the route
+writes an idempotent `learning_attempts` row for database courses using the
+session id, and returns deterministic feedback. If Gemini and quota allow, an
+AI debrief replaces only the explanatory text; it cannot change the engine's
+outcome or state.
+
+The teacher editor (`SimulationEditor`) provides structured forms for every part
+of the DSL. The AI builder can propose a simulation from a learning goal, but
+first judges whether a simulation is suitable; the proposal is test-playable and
+must be accepted before insertion. Static catalogue courses run the same engine
+locally for guests or when record storage is unavailable, without writing a
+gradebook.
+
+Two demos use the identical schema, engine, editor, renderer and persistence:
+
+- `se-essentials` / `requirements`: **Release prioritisation** — customer value,
+  delivery effort, stakeholder trust, committed scope and risk.
+- `demo-business-negotiation`: **Supplier renewal** — price increase, contract
+  term, delivery reliability, relationship and an alternative quote.
 
 ## Learner preferences
 
@@ -120,9 +175,13 @@ server checks prevent publishing or sharing these private courses.
    project first**: `0001_init.sql`, `20261022050613_general_learning_platform.sql`,
    `20261022180000_review_fixes.sql`,
    `20261022203000_quota_params_and_owner_read.sql`, then
-   `20261022235900_learning_preferences.sql`. Each migration is
+   `20261022235900_learning_preferences.sql`, then
+   `20261023090000_simulation_sessions.sql`. Each migration is
    transactional and preserves existing profiles/progress. The README has the
    fresh-project checklist (service role key, instructor grant, `/auth/callback`).
+   `simulation_sessions` grants authenticated users select on their own rows and
+   the service role writes; it stores the activity snapshot, state, history and
+   optimistic `version`, with a unique key per user/course/lesson/activity.
 3. Configure `.env.local` (or deployment environment):
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
@@ -193,16 +252,40 @@ The original software engineering and AI coding agent courses remain available
 and contain the required course-project teaching domains, including stakeholder
 communication/product decisions. Their contents are examples, not platform rules.
 
+### C — Cross-domain simulations
+
+1. Open the Software Engineering Essentials requirements lesson as a guest or
+   student. Start **Prioritise the first release**, choose the shared view,
+   release it and show the success debrief, rubric feedback and state changes.
+2. Open the business negotiation demo and take the supplier renewal path: ask
+   what drives the increase, trade a 24-month term for a lower increase, then
+   close at 8% with service credits. The same components render both domains.
+3. In the studio, use **Design a decision simulation** with a learning goal.
+   Show the suitability judgement, test-play the proposal, reject or accept it,
+   edit variables/stages/actions/conditions/effects in the structured editor,
+   preview, save and publish.
+4. Explain the server boundary: the browser sends an action id; the server
+   applies declared effects and returns a public projection. Refreshing resumes
+   the session; concurrent tabs receive a 409 and can restart.
+
 ## Limits and validation scope
 
 - No live Supabase/Gemini credentials were supplied, so live cloud generation,
   delivery latency, Auth email confirmation and hosted RLS advisors still require
-  a staging smoke test. Local SQL tests execute the actual migration in PGlite.
-- Browser tests use explicitly mocked cloud APIs for the teacher workflow. They
-  complement, rather than replace, database permission tests and live acceptance.
+  a staging smoke test. Local SQL tests execute the actual migrations in PGlite.
+- Browser tests use explicitly mocked cloud APIs for the teacher workflow and
+  mocked simulation responses for resume/authority checks. They complement,
+  rather than replace, database permission tests and live acceptance. Real
+  Gemini simulation design/debrief was not exercised in automated tests; the
+  deterministic fallback is always tested.
 - Reference materials currently accept pasted text, not file uploads or URL
-  retrieval. No email delivery, school-wide administration or arbitrary simulation
-  runtime is included. No collaborative editing UI; conflicting saves return 409.
+  retrieval. No email delivery, school-wide administration or arbitrary code
+  runtime is included. Simulations accept only the declared DSL — there is no
+  general-purpose interpreter, external API call or generated UI. No
+  collaborative editing UI; conflicting saves return 409.
+- A simulation session stores one active run per user/course/lesson/activity;
+  restart replaces the state while previous completed attempts remain in the
+  gradebook. Concurrent tabs converge through the optimistic version check.
 - AI feedback is formative, not high-stakes grading. It is based on supplied
   content/rubrics and student responses but can still be wrong.
 - Add deployment-specific distributed AI rate limits/budgets before opening this

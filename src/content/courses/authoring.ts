@@ -1,4 +1,5 @@
 import type { LessonBlock } from "@/lib/types";
+import type { SimulationConfig } from "@/lib/learning/simulation/schema";
 
 /**
  * Authoring helpers for static catalogue content. Dynamic teacher courses use
@@ -113,5 +114,16 @@ export function codeReview(
     version: 1,
     activityType: "code-review",
     config: { context, language, code, bugLines, explanation },
+  };
+}
+
+/** A declared, stateful scenario. The same schema is used by AI-designed and hand-written simulations. */
+export function simulation(id: string, config: SimulationConfig): LessonBlock {
+  return {
+    type: "activity",
+    id,
+    version: 1,
+    activityType: "simulation",
+    config,
   };
 }

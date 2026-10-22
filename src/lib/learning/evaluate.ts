@@ -316,6 +316,12 @@ const evaluators: {
   "code-review": evaluateCodeReview,
   response: evaluateResponse,
   conversation: evaluateConversation,
+  simulation: () => {
+    throw new HttpError(
+      400,
+      "Use the simulation player: its actions are validated by the simulation engine.",
+    );
+  },
 };
 
 export async function evaluateActivity(

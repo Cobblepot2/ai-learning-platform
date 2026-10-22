@@ -5,6 +5,7 @@ import {
   type ActivityType,
   type LearningActivity,
 } from "@/lib/learning/registry";
+import { SimulationEditor } from "@/components/learning/SimulationEditor";
 
 function FieldEditor({
   activity,
@@ -268,6 +269,7 @@ const editors: {
   conversation: (props) => <FieldEditor {...props} />,
   quiz: (props) => <QuizEditor {...props} />,
   "code-review": (props) => <CodeReviewEditor {...props} />,
+  simulation: (props) => <SimulationEditor {...props} />,
 };
 
 /** Editors are registered per activity type. CourseStudio does not branch on the type. */

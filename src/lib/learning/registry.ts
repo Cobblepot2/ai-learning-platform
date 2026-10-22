@@ -1,4 +1,9 @@
 import { z } from "zod";
+import {
+  initialSimulationConfig,
+  simulationConfigSchema,
+  simulationProblems,
+} from "./simulation/schema";
 
 const text = z.string().trim().min(1).max(12000);
 
@@ -195,6 +200,17 @@ export const activityDefinitions = {
       minTurns: 2,
     },
   },
+  simulation: {
+    renderer: "simulation" as const,
+    editor: "simulation" as const,
+    evaluation: "simulation" as const,
+    label: "Interactive simulation",
+    description:
+      "A stateful branching scenario: the learner chooses actions, the server applies declared state changes and different stages produce different endings.",
+    schema: simulationConfigSchema,
+    envelope: envelope("simulation", simulationConfigSchema),
+    initial: initialSimulationConfig,
+  },
 };
 
 export type ActivityType = keyof typeof activityDefinitions;
@@ -263,6 +279,8 @@ function structuralMessage(activity: LearningActivity): string | null {
         ? "Each bug line must exist in the code sample."
         : null;
     }
+    case "simulation":
+      return simulationProblems(activity.config)[0] ?? null;
     case "reading":
     case "response":
     case "conversation":
@@ -321,6 +339,7 @@ export function completionThreshold(activity: LearningActivity): number {
     case "ordering":
     case "code-review":
     case "response":
+    case "simulation":
       return 1;
     default: {
       const unreachable: never = activity;
@@ -367,6 +386,14 @@ export function activityForTutor(activity: LearningActivity): unknown {
         scenario: activity.config.scenario,
         goals: activity.config.goals,
         opening: activity.config.opening,
+      };
+    case "simulation":
+      return {
+        type: "simulation",
+        title: activity.config.title,
+        description: activity.config.scenario.description,
+        objectives: activity.config.scenario.objectives,
+        participantRole: activity.config.scenario.participantRole,
       };
     default: {
       const unreachable: never = activity;

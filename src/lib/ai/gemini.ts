@@ -151,6 +151,7 @@ export async function generateJson<T extends z.ZodType>(params: {
   system: string;
   prompt: string;
   schema: T;
+  maxTokens?: number;
 }): Promise<z.infer<T> | null> {
   // Gemini supports a subset of JSON Schema; the meta-schema URL isn't part of it.
   const jsonSchema: Record<string, unknown> = { ...z.toJSONSchema(params.schema) };
@@ -160,7 +161,7 @@ export async function generateJson<T extends z.ZodType>(params: {
     contents: [{ role: "user", parts: [{ text: params.prompt }] }],
     config: {
       systemInstruction: params.system,
-      maxOutputTokens: 4096,
+      maxOutputTokens: params.maxTokens ?? 4096,
       responseMimeType: "application/json",
       responseJsonSchema: jsonSchema,
     },

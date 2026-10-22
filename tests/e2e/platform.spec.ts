@@ -1,5 +1,178 @@
 import { test, expect } from "@playwright/test";
 import { exampleCourse } from "../../src/lib/learning/examples";
+import { seEssentials } from "../../src/content/courses/se-essentials";
+import {
+  applySimulationAction,
+  simulationView,
+  startSimulation,
+} from "../../src/lib/learning/simulation/engine";
+import { deterministicSimulationFeedback } from "../../src/lib/learning/simulation/evaluate";
+import type { LearningActivity } from "../../src/lib/learning/registry";
+import type { SimulationConfig } from "../../src/lib/learning/simulation/schema";
+
+const simulationBlock = seEssentials.lessons
+  .find((lesson) => lesson.id === "requirements")!
+  .blocks.find((block) => block.activityType === "simulation")! as Extract<
+  LearningActivity,
+  { activityType: "simulation" }
+>;
+const simulationConfig = simulationBlock.config as SimulationConfig;
+
+test("a static simulation works as local practice without writing records", async ({
+  page,
+}) => {
+  let writes = 0;
+  page.on("request", (request) => {
+    if (
+      request.url().includes("/api/simulations") &&
+      request.method() !== "GET"
+    ) {
+      writes += 1;
+    }
+  });
+  await page.goto("/courses/se-essentials/requirements");
+  await page.getByRole("button", { name: "Begin simulation" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Choose the first move" }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: /Ship a shared availability view/ })
+    .click();
+  await expect(page.getByText("Step 1 of 5", { exact: true })).toBeVisible();
+  await expect(page.getByText("Committed scope", { exact: true })).toBeVisible();
+  await page
+    .getByRole("button", { name: /Release the shared view and measure the queue/ })
+    .click();
+  await expect(page.getByText("Goal reached", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Try again", exact: true }),
+  ).toBeVisible();
+  expect(writes).toBe(0);
+});
+
+test("a server-backed simulation resumes after reload and accepts only action ids", async ({
+  page,
+}) => {
+  const bodies: Record<string, unknown>[] = [];
+  let started = false;
+  let state = startSimulation(simulationConfig);
+  let history: ReturnType<typeof applySimulationAction>["event"][] = [];
+  const response = () => ({
+    session: simulationView(simulationConfig, state, history),
+    ...(state.status === "completed"
+      ? {
+          feedback: deterministicSimulationFeedback(
+            simulationConfig,
+            state,
+            history,
+          ),
+        }
+      : {}),
+    saved: true,
+  });
+  await page.route("**/api/simulations**", async (route) => {
+    if (route.request().method() === "GET") {
+      return route.fulfill({ json: started ? response() : { session: null } });
+    }
+    const body = route.request().postDataJSON() as Record<string, unknown>;
+    bodies.push(body);
+    if (body.action === "start") {
+      started = true;
+      return route.fulfill({ json: response() });
+    }
+    if (body.action === "restart") {
+      state = startSimulation(simulationConfig);
+      history = [];
+      return route.fulfill({ json: response() });
+    }
+    if (!started || state.status === "completed") {
+      return route.fulfill({ json: response() });
+    }
+    const next = applySimulationAction(
+      simulationConfig,
+      state,
+      String(body.choiceId),
+    );
+    state = next.state;
+    history = [...history, next.event];
+    return route.fulfill({ json: response() });
+  });
+
+  await page.goto("/courses/se-essentials/requirements");
+  await page.getByRole("button", { name: "Begin simulation" }).click();
+  await page
+    .getByRole("button", { name: /Ship a shared availability view/ })
+    .click();
+  await expect(page.getByText("Step 1 of 5", { exact: true })).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByText("Step 1 of 5", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Before the pilot" }),
+  ).toBeVisible();
+
+  await page
+    .getByRole("button", { name: /Release the shared view and measure the queue/ })
+    .click();
+  await expect(page.getByText("Goal reached", { exact: true })).toBeVisible();
+
+  expect(bodies.length).toBeGreaterThanOrEqual(3);
+  for (const body of bodies) {
+    expect(Object.keys(body).sort()).toEqual(
+      body.choiceId
+        ? ["action", "activityId", "choiceId", "courseId", "lessonId"]
+        : ["action", "activityId", "courseId", "lessonId"],
+    );
+    expect(JSON.stringify(body)).not.toMatch(
+      /outcome|variables|score|stageId|step/,
+    );
+  }
+});
+
+test("teacher preview runs the simulation without calling the server", async ({
+  page,
+}) => {
+  const document = exampleCourse("english");
+  document.lessons = [
+    {
+      ...document.lessons[0],
+      blocks: [simulationBlock],
+    },
+  ];
+  const row = {
+    id: document.id,
+    owner_id: "teacher",
+    status: "draft",
+    visibility: "private",
+    revision: 1,
+    document,
+  };
+  let serverCalls = 0;
+  page.on("request", (request) => {
+    if (request.url().includes("/api/simulations")) serverCalls += 1;
+  });
+  await page.route("**/api/me", (route) =>
+    route.fulfill({ json: { id: "teacher", isTeacher: true } }),
+  );
+  await page.route("**/api/courses**", (route) => {
+    if (route.request().url().includes("learnerImpact")) {
+      return route.fulfill({ json: { attempts: 0, enrolments: 0, progress: 0 } });
+    }
+    return route.fulfill({ json: [row] });
+  });
+  await page.goto("/my-courses");
+  await page.getByRole("button", { name: document.title, exact: true }).click();
+  await page.getByRole("button", { name: "Student preview", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Choose the first move" }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: /Ship a shared availability view/ })
+    .click();
+  await expect(page.getByText("Step 1 of 5", { exact: true })).toBeVisible();
+  expect(serverCalls).toBe(0);
+});
+
 
 test("public demonstration courses retain their lesson pages", async ({
   page,

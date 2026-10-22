@@ -14,6 +14,7 @@ This is the prototype for the week 8–9 project discussion meeting.
 | Quiz, ordering, code-review bug hunt | ✅ |
 | AI tutor side panel (knows the lesson, adapts to the profile) | ✅ `/api/tutor` (streaming) |
 | Guided response and conversation activities with rubric feedback | ✅ `/api/activities` |
+| Declarative simulations (AI-designed or hand-written) | ✅ stateful branching with server-owned state, rubric feedback and two cross-domain demos |
 | Teacher workspace: course editor, AI builder, students and invitations | ✅ `/teach` (instructor role required) |
 | Personal courses for learners | ✅ `/my-courses` |
 | Progress dashboard | ✅ `/dashboard` |
@@ -47,6 +48,7 @@ npm run dev                  # http://localhost:3000
    - `20261022180000_review_fixes.sql`
    - `20261022203000_quota_params_and_owner_read.sql`
    - `20261022235900_learning_preferences.sql`
+   - `20261023090000_simulation_sessions.sql`
 3. Copy the project URL, the anon key and the service role key into `.env.local`:
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
@@ -75,13 +77,15 @@ src/
     api/tutor          AI tutor (streams text)
     api/activities     activity submission, deterministic + AI evaluation, attempts
     api/courses        course CRUD with ownership and publication checks
-    api/builder        outline and lesson generation
+    api/builder        outline, lesson and simulation design generation
+    api/simulations    server-authoritative simulation start/choose/restart
     api/enrolments     invitation claiming and enrolment
   components/          UI; components/learning = activity views and studio panels
   content/courses/     static catalogue and the shared authoring helpers
   lib/
     ai/gemini.ts       Gemini client, learner description, streaming + JSON helpers
     learning/registry.ts  activity schemas, defaults, editors, renderers, evaluators
+    learning/simulation/  declarative DSL, validation, server engine, feedback
     learning/studio/   course editor state hook and panels
     types.ts           shared read/catalogue types
 supabase/migrations/   database schema
@@ -93,9 +97,21 @@ Lessons contain ordered activities defined by the registry in
 `src/lib/learning/registry.ts`. Each activity is validated, editable and rendered
 through the same definition. Static courses use the helpers in
 `src/content/courses/authoring.ts` (`reading`, `choice`, `quiz`, `ordering`,
-`codeReview`, `response`, `conversation`); the same envelope is what the course
+`codeReview`, `response`, `conversation`, `simulation`); the same envelope is what the course
 builder stores in the database. To add a new activity type, add its schema,
 defaults, editor/renderer and optional evaluator to the registry.
+
+### Simulations
+
+A `simulation` activity is a Zod-validated declarative scenario: bounded state
+variables, stages, actions with availability conditions, effects, an optional
+next stage, completion rules and a rubric. The server owns the state; clients
+send only an action id. There is no generated JavaScript, expression evaluator,
+`eval` or external call. AI can design the structure in the course studio, but
+the teacher reviews it, and the deterministic engine works without AI.
+
+See the architecture document for the DSL and the two demo scenarios
+(requirement prioritisation and supplier negotiation).
 
 ## Teaching workspace and course studio
 
