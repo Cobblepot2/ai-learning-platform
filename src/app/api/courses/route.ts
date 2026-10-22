@@ -1,6 +1,7 @@
 import { requireAccount, apiError, HttpError } from "@/lib/supabase/server";
 import { parseCourse } from "@/lib/learning/model";
 import { ownedCourse } from "@/lib/learning/repository";
+import { courseForClient, type StoredCourseRow } from "@/lib/learning/course-view";
 
 export async function GET(req: Request) {
   try {
@@ -31,14 +32,18 @@ export async function GET(req: Request) {
         progress: progress.count ?? 0,
       });
     }
+    const accessible = new URL(req.url).searchParams.has("accessible");
     let query = db.from("courses").select("*");
-    if (!new URL(req.url).searchParams.has("accessible"))
-      query = query.eq("owner_id", user.id);
+    if (!accessible) query = query.eq("owner_id", user.id);
     const { data, error } = await query.order("updated_at", {
       ascending: false,
     });
     if (error) throw error;
-    return Response.json(data);
+    return Response.json(
+      (data ?? []).map((row) =>
+        courseForClient(row as StoredCourseRow, user.id, accessible),
+      ),
+    );
   } catch (e) {
     return apiError(e);
   }

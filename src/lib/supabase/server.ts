@@ -62,12 +62,36 @@ export class HttpError extends Error {
     super(message);
   }
 }
+const GENERIC_FAILURE = "Request failed.";
+
+// PostgrestError is a plain object in some client versions and an Error in
+// others. Branch on the code either way, and never send driver text to the client.
+const DATABASE_ERRORS: Record<string, { status: number; message: string }> = {
+  "42501": { status: 403, message: "You do not have permission to do that." },
+  "23505": { status: 409, message: "That record already exists." },
+  "23503": { status: 400, message: "That request is not valid." },
+  "23502": { status: 400, message: "That request is not valid." },
+  "23514": { status: 400, message: "That request is not valid." },
+  "22P02": { status: 400, message: "That request is not valid." },
+  "22001": { status: 400, message: "That request is not valid." },
+  "22003": { status: 400, message: "That request is not valid." },
+  PGRST116: { status: 404, message: "Not found." },
+};
+
+function databaseCode(error: unknown) {
+  if (!error || typeof error !== "object" || !("code" in error)) return null;
+  const code = (error as { code?: unknown }).code;
+  if (typeof code !== "string") return null;
+  if (/^[0-9A-Z]{5}$/.test(code) || /^PGRST\d+$/.test(code)) return code;
+  return null;
+}
+
 export function apiError(error: unknown) {
   if (error instanceof HttpError)
     return Response.json({ error: error.message }, { status: error.status });
   console.error(error);
-  return Response.json(
-    { error: error instanceof Error ? error.message : "Request failed." },
-    { status: 400 },
-  );
+  const mapped = DATABASE_ERRORS[databaseCode(error) ?? ""];
+  if (mapped)
+    return Response.json({ error: mapped.message }, { status: mapped.status });
+  return Response.json({ error: GENERIC_FAILURE }, { status: 500 });
 }

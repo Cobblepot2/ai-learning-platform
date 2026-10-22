@@ -84,9 +84,12 @@ server checks prevent publishing or sharing these private courses.
 ## Database and deployment
 
 1. Install Node.js 20.19+ (tested with Node 24), then `npm ci`.
-2. Apply `supabase/migrations/0001_init.sql` if this is a new database, followed by
-   `20261022050613_general_learning_platform.sql`. Use a **staging project first**.
-   The migration is transactional and preserves existing profiles/progress.
+2. Apply every file in `supabase/migrations` in filename order, on a **staging
+   project first**: `0001_init.sql`, `20261022050613_general_learning_platform.sql`,
+   `20261022180000_review_fixes.sql`, then
+   `20261022203000_quota_params_and_owner_read.sql`. Each migration is
+   transactional and preserves existing profiles/progress. The README has the
+   fresh-project checklist (service role key, instructor grant, `/auth/callback`).
 3. Configure `.env.local` (or deployment environment):
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
@@ -170,8 +173,8 @@ communication/product decisions. Their contents are examples, not platform rules
 - AI feedback is formative, not high-stakes grading. It is based on supplied
   content/rubrics and student responses but can still be wrong.
 - Add deployment-specific distributed AI rate limits/budgets before opening this
-  prototype to an untrusted public audience. Legacy public-demo AI APIs retain
-  their upstream access behavior.
+  prototype to an untrusted public audience. Tutor, role-play, prompt lab, course
+  builder and activity feedback require a signed-in account and `consume_ai_quota`.
 - Public course documents include quiz answer keys (as the old prototype did).
   This platform is not a secure examination system.
 - Large course generation is sequential, one lesson per request. If generation
