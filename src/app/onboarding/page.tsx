@@ -98,7 +98,7 @@ export default function OnboardingPage() {
           />
         </label>
         <Choice label="Your background" options={BACKGROUND_LABELS} value={background} onChange={setBackground} />
-        <Choice label="Coding experience" options={EXPERIENCE_LABELS} value={experience} onChange={setExperience} />
+        <Choice label="Experience in the subject you want to study" options={EXPERIENCE_LABELS} value={experience} onChange={setExperience} />
         <Choice label="What do you want to get out of this?" options={GOAL_LABELS} value={goal} onChange={setGoal} />
         <Choice label="Preferred language for AI explanations" options={LANGUAGE_LABELS} value={language} onChange={setLanguage} />
         <button

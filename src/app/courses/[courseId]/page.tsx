@@ -1,14 +1,10 @@
 import { notFound } from "next/navigation";
 import { LessonList } from "@/components/LessonList";
-import { courses, getCourse } from "@/content/courses";
-
-export function generateStaticParams() {
-  return courses.map((c) => ({ courseId: c.id }));
-}
+import { readCourse } from "@/lib/learning/repository";
 
 export default async function CoursePage({ params }: { params: Promise<{ courseId: string }> }) {
   const { courseId } = await params;
-  const course = getCourse(courseId);
+  const course = await readCourse(courseId);
   if (!course) notFound();
 
   return (

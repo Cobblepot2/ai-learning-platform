@@ -1,8 +1,14 @@
 import type { Course, Lesson } from "@/lib/types";
+import { activityForTutor, validateActivity } from "@/lib/learning/registry";
 import { aiCodingAgents } from "./ai-coding-agents";
+import { presentationDemos } from "./presentation-demos";
 import { seEssentials } from "./se-essentials";
 
-export const courses: Course[] = [seEssentials, aiCodingAgents];
+export const courses: Course[] = [seEssentials, aiCodingAgents, ...presentationDemos];
+
+export function isPresentationDemo(id: string): boolean {
+  return presentationDemos.some((course) => course.id === id);
+}
 
 export function getCourse(courseId: string): Course | undefined {
   return courses.find((c) => c.id === courseId);
@@ -19,6 +25,14 @@ export function lessonAsText(lesson: Lesson): string {
   return lesson.blocks
     .map((b) => {
       switch (b.type) {
+        case "activity": {
+          const parsed = validateActivity(b);
+          if (!parsed.success) return `Unsupported activity (${b.activityType}).`;
+          return JSON.stringify({
+            objectives: parsed.data.objectives,
+            ...((activityForTutor(parsed.data) as object) ?? {}),
+          });
+        }
         case "text":
           return b.markdown;
         case "quiz":

@@ -1,11 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { courses } from "@/content/courses";
+import { useEffect, useState } from "react";
+import type { Course } from "@/lib/types";
+import { courses as demos } from "@/content/courses";
 import { useLearner } from "@/lib/learner-store";
 import { BACKGROUND_LABELS, GOAL_LABELS } from "@/lib/types";
 
 export default function DashboardPage() {
+  const [courses, setCourses] = useState<Course[]>(demos);
+  useEffect(() => { fetch("/api/courses?accessible=1").then(r => r.json()).then(rows => { if (Array.isArray(rows)) setCourses([...demos, ...rows.map(r => r.document)]); }).catch(() => {}); }, []);
   const { ready, profile, progress } = useLearner();
   if (!ready) return null;
 
@@ -37,8 +41,8 @@ export default function DashboardPage() {
 
       <div className="mt-8 grid gap-4 sm:grid-cols-3">
         <Stat label="Lessons completed" value={`${completed.length} / ${allLessons.length}`} />
-        <Stat label="Activities done" value={String(scores.length)} />
-        <Stat label="Average activity score" value={avg === null ? "–" : `${avg}%`} />
+        <Stat label="Activities done" value={String(Object.values(progress).reduce((n,p)=>n+Object.values(p.blocks).filter(b=>b.done).length,0))} />
+        <Stat label="Average scored activity result" value={avg === null ? "–" : `${avg}%`} />
       </div>
 
       {next && (
@@ -63,7 +67,7 @@ export default function DashboardPage() {
             <ul className="mt-3 divide-y divide-stone-100 rounded-2xl border border-stone-200 bg-white">
               {course.lessons.map((lesson) => {
                 const p = progress[`${course.id}/${lesson.id}`];
-                const activities = lesson.blocks.filter((b) => b.type !== "text");
+                const activities = lesson.blocks.filter((b) => b.type !== "text" && !(b.type === "activity" && b.activityType === "reading"));
                 const done = activities.filter((b) => p?.blocks[b.id]?.done).length;
                 return (
                   <li key={lesson.id} className="flex items-center justify-between gap-3 px-4 py-3 text-sm">

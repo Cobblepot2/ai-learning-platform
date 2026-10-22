@@ -39,12 +39,12 @@ export function toContents(turns: unknown, { requireUserLast = true } = {}): Con
 }
 
 export function describeLearner(profile: LearnerProfile | null | undefined): string {
-  if (!profile) return "No learner profile yet. Assume a curious beginner with no programming background.";
+  if (!profile) return "No learner profile yet. Assume a curious beginner in the current subject.";
   const lang = profile.language === "zh" ? "Traditional Chinese (Hong Kong usage)" : "English";
   return [
     `Name: ${profile.displayName || "(not given)"}`,
     `Background: ${BACKGROUND_LABELS[profile.background] ?? profile.background}`,
-    `Coding experience: ${EXPERIENCE_LABELS[profile.experience] ?? profile.experience}`,
+    `Self-reported subject experience: ${EXPERIENCE_LABELS[profile.experience] ?? profile.experience}`,
     `Goal: ${GOAL_LABELS[profile.goal] ?? profile.goal}`,
     `Preferred language: ${lang}`,
   ].join("\n");
