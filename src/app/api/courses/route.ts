@@ -5,6 +5,32 @@ import { ownedCourse } from "@/lib/learning/repository";
 export async function GET(req: Request) {
   try {
     const { db, user } = await requireAccount();
+    const impactId = new URL(req.url).searchParams.get("learnerImpact");
+    if (impactId) {
+      await ownedCourse(impactId, db, user.id);
+      const [attempts, enrolments, progress] = await Promise.all([
+        db
+          .from("learning_attempts")
+          .select("id", { count: "exact", head: true })
+          .eq("course_id", impactId),
+        db
+          .from("course_enrolments")
+          .select("student_id", { count: "exact", head: true })
+          .eq("course_id", impactId),
+        db
+          .from("lesson_progress")
+          .select("user_id", { count: "exact", head: true })
+          .eq("course_id", impactId),
+      ]);
+      for (const result of [attempts, enrolments, progress]) {
+        if (result.error) throw result.error;
+      }
+      return Response.json({
+        attempts: attempts.count ?? 0,
+        enrolments: enrolments.count ?? 0,
+        progress: progress.count ?? 0,
+      });
+    }
     let query = db.from("courses").select("*");
     if (!new URL(req.url).searchParams.has("accessible"))
       query = query.eq("owner_id", user.id);
@@ -44,18 +70,19 @@ export async function PUT(req: Request) {
     const body = await req.json();
     const document = parseCourse(body.document);
     await ownedCourse(document.id, db, user.id);
+    const status = body.status === "archived" ? "archived" : body.status;
+    const visibility = status === "archived" ? "private" : body.visibility;
     if (
-      !["draft", "published"].includes(body.status) ||
-      !["private", "enrolled", "public"].includes(body.visibility)
+      !["draft", "published", "archived"].includes(status) ||
+      !["private", "enrolled", "public"].includes(visibility)
     )
       throw new HttpError(400, "Invalid publication settings.");
-    if (
-      !isTeacher &&
-      (body.status !== "draft" || body.visibility !== "private")
-    )
+    if (!isTeacher && (status !== "draft" || visibility !== "private"))
       throw new HttpError(403, "Student courses remain private.");
+    if (status === "archived" && !isTeacher)
+      throw new HttpError(403, "Only an instructor can archive a course.");
     if (
-      body.status === "published" &&
+      status === "published" &&
       (!document.lessons.length ||
         document.lessons.some((l) => !l.blocks.length))
     )
@@ -69,8 +96,8 @@ export async function PUT(req: Request) {
       .from("courses")
       .update({
         document,
-        status: body.status,
-        visibility: body.visibility,
+        status,
+        visibility,
         revision: body.revision + 1,
         updated_at: new Date().toISOString(),
       })
@@ -96,13 +123,32 @@ export async function DELETE(req: Request) {
     const id = new URL(req.url).searchParams.get("id");
     const row = await ownedCourse(id ?? "", db, user.id);
     if (row.status !== "draft")
-      throw new HttpError(400, "Unpublish before deleting.");
+      throw new HttpError(400, "Unpublish before deleting, or archive the course.");
+    const { count, error: countError } = await db
+      .from("learning_attempts")
+      .select("id", { count: "exact", head: true })
+      .eq("course_id", row.id);
+    if (countError) throw countError;
+    if ((count ?? 0) > 0) {
+      throw new HttpError(
+        409,
+        "This course has learner records. Archive it instead of deleting.",
+      );
+    }
     const { error } = await db
       .from("courses")
       .delete()
       .eq("id", row.id)
       .eq("owner_id", user.id);
-    if (error) throw error;
+    if (error) {
+      if (/restrict|foreign key|23503/i.test(error.message)) {
+        throw new HttpError(
+          409,
+          "This course has learner records. Archive it instead of deleting.",
+        );
+      }
+      throw error;
+    }
     return Response.json({ deleted: true });
   } catch (e) {
     return apiError(e);

@@ -89,8 +89,19 @@ export interface CodeReviewBlock {
   explanation: string;
 }
 
+/** Kept in the player when a stored activity fails the registry, so the placeholder can render. */
+export interface UnsupportedActivity {
+  type: "activity";
+  id: string;
+  version: number;
+  activityType: string;
+  config: unknown;
+  objectives?: string[];
+}
+
 export type LessonBlock =
   | import("./learning/registry").LearningActivity
+  | UnsupportedActivity
   | TextBlock
   | QuizBlock
   | OrderingBlock

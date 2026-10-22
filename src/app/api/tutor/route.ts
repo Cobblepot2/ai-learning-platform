@@ -1,12 +1,15 @@
-import { apiError } from "@/lib/supabase/server";
+import { apiError, requireAccount } from "@/lib/supabase/server";
 import { lessonAsText } from "@/content/courses";
 import { readLesson } from "@/lib/learning/repository";
+import { enforceQuota } from "@/lib/ai/quota";
 import { badRequest, describeLearner, missingKey, streamText, toContents } from "@/lib/ai/gemini";
 
 export async function POST(req: Request) {
   try {
+  const { db, user } = await requireAccount();
   const noKey = missingKey();
   if (noKey) return noKey;
+  await enforceQuota(db, user.id, "tutor");
 
   const { courseId, lessonId, profile, messages } = await req.json();
   const found = (await readLesson(courseId, lessonId));

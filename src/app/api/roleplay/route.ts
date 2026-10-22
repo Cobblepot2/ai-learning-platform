@@ -1,4 +1,5 @@
-import { apiError } from "@/lib/supabase/server";
+import { apiError, requireAccount } from "@/lib/supabase/server";
+import { enforceQuota } from "@/lib/ai/quota";
 import { z } from "zod";
 import { readLesson } from "@/lib/learning/repository";
 import { badRequest, describeLearner, generateJson, missingKey, streamText, toContents } from "@/lib/ai/gemini";
@@ -21,8 +22,10 @@ async function findBlock(courseId: string, lessonId: string, blockId: string): P
 
 export async function POST(req: Request) {
   try {
+  const { db, user } = await requireAccount();
   const noKey = missingKey();
   if (noKey) return noKey;
+  await enforceQuota(db, user.id, "roleplay");
 
   const { courseId, lessonId, blockId, profile, messages, mode } = await req.json();
   const block = await findBlock(courseId, lessonId, blockId);

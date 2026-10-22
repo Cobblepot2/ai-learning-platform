@@ -11,6 +11,7 @@ import { PromptLabBlockView } from "@/components/blocks/PromptLabBlockView";
 import { QuizBlockView } from "@/components/blocks/QuizBlockView";
 import { RoleplayBlockView } from "@/components/blocks/RoleplayBlockView";
 import { buttonPrimary } from "@/components/blocks/BlockCard";
+import { isDatabaseCourseId } from "@/lib/learning/ids";
 import { useLearner } from "@/lib/learner-store";
 import type { BlockResult, Course, Lesson, LessonBlock } from "@/lib/types";
 
@@ -18,7 +19,7 @@ export function LessonPlayer({ course, lesson, preview = false }: { course: Cour
   const [previewResults, setPreviewResults] = useState<Record<string, BlockResult>>({});
   const [completionError, setCompletionError] = useState("");
   const [completing, setCompleting] = useState(false);
-  const { progress, recordBlock, completeLesson } = useLearner();
+  const { progress, recordBlock, completeLesson, noteServerLessonComplete } = useLearner();
   const [tutorOpen, setTutorOpen] = useState(false);
   const lessonProgress = progress[`${course.id}/${lesson.id}`];
   const results = preview ? previewResults : lessonProgress?.blocks ?? {};
@@ -101,11 +102,13 @@ export function LessonPlayer({ course, lesson, preview = false }: { course: Cour
               if (preview) return;
               setCompleting(true); setCompletionError("");
               try {
-                if (/^[0-9a-f-]{36}$/i.test(course.id)) {
+                if (isDatabaseCourseId(course.id)) {
                   const res = await fetch("/api/activities", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ courseId: course.id, lessonId: lesson.id, action: "complete" }) });
                   const data = await res.json(); if (!res.ok) throw new Error(data.error);
+                  noteServerLessonComplete(course.id, lesson.id);
+                } else {
+                  completeLesson(course.id, lesson.id);
                 }
-                completeLesson(course.id, lesson.id);
               } catch(e) { setCompletionError((e as Error).message); } finally { setCompleting(false); }
             }}>
               Mark lesson complete

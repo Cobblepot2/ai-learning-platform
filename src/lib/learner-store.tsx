@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { getSupabase } from "@/lib/supabase/client";
+import { isDatabaseCourseId } from "@/lib/learning/ids";
 import type { BlockResult, LearnerProfile } from "@/lib/types";
 
 /**
@@ -26,6 +27,7 @@ interface LearnerState {
   progress: ProgressMap;
   recordBlock: (courseId: string, lessonId: string, blockId: string, result: BlockResult) => void;
   completeLesson: (courseId: string, lessonId: string) => void;
+  noteServerLessonComplete: (courseId: string, lessonId: string) => void;
   logEvent: (courseId: string, lessonId: string | null, eventType: string, payload?: object) => void;
   signOut: () => Promise<void>;
 }
@@ -153,7 +155,7 @@ export function LearnerProvider({ children }: { children: React.ReactNode }) {
   const syncLesson = useCallback(
     (courseId: string, lessonId: string, lesson: LessonProgress) => {
       const supabase = getSupabase();
-      if (!supabase || !user || /^[0-9a-f-]{36}$/i.test(courseId)) return;
+      if (!supabase || !user || isDatabaseCourseId(courseId)) return;
       void supabase.from("lesson_progress").upsert({
         user_id: user.id,
         course_id: courseId,
@@ -217,6 +219,25 @@ export function LearnerProvider({ children }: { children: React.ReactNode }) {
     [updateLesson, logEvent],
   );
 
+  const noteServerLessonComplete = useCallback(
+    (courseId: string, lessonId: string) => {
+      setProgress((prev) => {
+        const key = `${courseId}/${lessonId}`;
+        const current = prev[key] ?? { blocks: {} };
+        const next = {
+          ...prev,
+          [key]: {
+            ...current,
+            completedAt: current.completedAt ?? new Date().toISOString(),
+          },
+        };
+        writeLocal(user ? `${PROGRESS_KEY}:${user.id}` : PROGRESS_KEY, next);
+        return next;
+      });
+    },
+    [user],
+  );
+
   const signOut = useCallback(async () => {
     activeUserId.current = null;
     await getSupabase()?.auth.signOut();
@@ -224,8 +245,8 @@ export function LearnerProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo<LearnerState>(
-    () => ({ ready, user, profile, saveProfile, progress, recordBlock, completeLesson, logEvent, signOut }),
-    [ready, user, profile, saveProfile, progress, recordBlock, completeLesson, logEvent, signOut],
+    () => ({ ready, user, profile, saveProfile, progress, recordBlock, completeLesson, noteServerLessonComplete, logEvent, signOut }),
+    [ready, user, profile, saveProfile, progress, recordBlock, completeLesson, noteServerLessonComplete, logEvent, signOut],
   );
 
   return <LearnerContext.Provider value={value}>{children}</LearnerContext.Provider>;

@@ -25,6 +25,12 @@ test("database enforces role, ownership, enrolment, publication and evidence bou
     ),
   );
   await db.exec(
+    readFileSync(
+      "supabase/migrations/20261022180000_review_fixes.sql",
+      "utf8",
+    ),
+  );
+  await db.exec(
     `insert into auth.users values ('${teacher}','teacher@example.test',now()),('${student}','student@example.test',now()),('${outsider}','outsider@example.test',now()),('${otherTeacher}','other@example.test',now()); update public.profiles set role='instructor' where id in ('${teacher}','${otherTeacher}');`,
   );
   async function as(id: string, sql: string) {
@@ -117,7 +123,14 @@ test("database enforces role, ownership, enrolment, publication and evidence bou
       outsider,
       `insert into public.course_enrolments values('${course}',auth.uid(),now())`,
     ),
-    /row-level security/,
+    /row-level security|permission denied/,
+  );
+  await assert.rejects(
+    as(
+      teacher,
+      `insert into public.course_enrolments values('${course}','${outsider}',now())`,
+    ),
+    /row-level security|permission denied/,
   );
   await assert.rejects(
     as(
@@ -132,6 +145,21 @@ test("database enforces role, ownership, enrolment, publication and evidence bou
       `insert into public.lesson_progress(user_id,course_id,lesson_id,completed_at) values(auth.uid(),'${course}','l',now())`,
     ),
     /row-level security/,
+  );
+  await db.exec(
+    `insert into public.lesson_progress(user_id,course_id,lesson_id) values('${student}','${course}','server')`,
+  );
+  await as(
+    student,
+    `delete from public.lesson_progress where user_id='${student}' and course_id='${course}'`,
+  );
+  assert.equal(
+    (
+      await db.exec(
+        `select * from public.lesson_progress where course_id='${course}'`,
+      )
+    )[0].rows.length,
+    1,
   );
   await as(
     student,

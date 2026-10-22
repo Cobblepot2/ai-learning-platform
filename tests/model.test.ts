@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseCourse } from "../src/lib/learning/model";
+import { mergeCourseDraft, parseCourse } from "../src/lib/learning/model";
 import {
   validateActivity,
   sameActivityContent,
@@ -67,7 +67,11 @@ test("duplicate IDs are rejected; content-only courses are valid", () => {
   assert.throws(() => parseCourse(course), /Duplicate/);
 });
 test("existing prototype lessons and stable IDs remain readable", () => {
-  assert.equal(courses.length, 2);
+  const ids = courses.map((course) => course.id);
+  assert.ok(ids.includes("se-essentials"));
+  assert.ok(ids.includes("ai-coding-agents"));
+  assert.ok(ids.includes("demo-se-requirements"));
+  assert.ok(ids.includes("demo-english-negotiation"));
   for (const course of courses)
     for (const lesson of course.lessons) {
       assert.ok(lessonAsText(lesson).length);
@@ -84,4 +88,15 @@ test("activity completion compares content across JSONB key order and invalidate
   assert.equal(sameActivityContent(activity, reordered), true);
   reordered.config.task = "A different task";
   assert.equal(sameActivityContent(activity, reordered), false);
+});
+
+test("accepting a generated course keeps lesson and activity ids by position", () => {
+  const current = parseCourse(exampleCourse("english"));
+  const proposal = parseCourse(exampleCourse("software"));
+  const merged = mergeCourseDraft(current, proposal);
+  assert.equal(merged.id, current.id);
+  assert.equal(merged.lessons[0].id, current.lessons[0].id);
+  assert.equal(merged.lessons[0].blocks[0].id, current.lessons[0].blocks[0].id);
+  assert.equal(merged.lessons[0].blocks[1].id, current.lessons[0].blocks[1].id);
+  assert.equal(merged.title, proposal.title);
 });

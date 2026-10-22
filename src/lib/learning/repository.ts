@@ -1,7 +1,8 @@
 import { getCourse as staticCourse, courses } from "@/content/courses";
 import { serverDb, HttpError } from "@/lib/supabase/server";
 import { adaptStaticCourse } from "./legacy";
-import { parseCourse, type CourseRecord } from "./model";
+import { interpretStoredCourse } from "./read";
+import type { CourseRecord } from "./model";
 import type { Course } from "@/lib/types";
 
 export async function readCourse(id: string): Promise<Course | undefined> {
@@ -19,7 +20,16 @@ export async function readCourse(id: string): Promise<Course | undefined> {
       503,
       "Course storage unavailable. Apply the database migrations.",
     );
-  return data ? parseCourse(data.document) : undefined;
+  if (!data) return undefined;
+  const interpreted = interpretStoredCourse(data.document);
+  if (!interpreted.course) {
+    console.error("Skipping malformed course", id, interpreted.notes);
+    return undefined;
+  }
+  if (interpreted.notes.length) {
+    console.error("Course loaded with unsupported parts", id, interpreted.notes);
+  }
+  return interpreted.course;
 }
 export async function readLesson(courseId: string, lessonId: string) {
   const course = await readCourse(courseId);
@@ -38,10 +48,27 @@ export async function listCourses(): Promise<Course[]> {
       503,
       "Course storage unavailable. Apply the database migrations.",
     );
-  return [
-    ...courses.map(adaptStaticCourse),
-    ...(data ?? []).map((row) => parseCourse(row.document)),
-  ];
+  const published: Course[] = [];
+  for (const row of data ?? []) {
+    try {
+      const interpreted = interpretStoredCourse(row.document);
+      if (!interpreted.course) {
+        console.error("Skipping malformed course", interpreted.notes);
+        continue;
+      }
+      if (interpreted.notes.length) {
+        console.error(
+          "Course loaded with unsupported parts",
+          interpreted.course.id,
+          interpreted.notes,
+        );
+      }
+      published.push(interpreted.course);
+    } catch (error) {
+      console.error("Skipping malformed course", error);
+    }
+  }
+  return [...courses.map(adaptStaticCourse), ...published];
 }
 export async function ownedCourse(
   id: string,

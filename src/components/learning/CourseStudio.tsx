@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { z } from "zod";
 import {
+  acceptProposalLesson,
+  mergeCourseDraft,
   newCourse,
   parseCourse,
   outlineSchema,
@@ -19,6 +21,8 @@ import {
 import { ActivityEditor } from "./ActivityEditor";
 import { exampleCourse } from "@/lib/learning/examples";
 import { Analytics } from "./Analytics";
+import { ActivitySummary } from "./ActivitySummary";
+import { DraftReview } from "./DraftReview";
 import { LessonPlayer } from "@/components/LessonPlayer";
 import {
   buttonPrimary as primary,
@@ -62,6 +66,12 @@ export function CourseStudio({ teacher = false }: { teacher?: boolean }) {
     null,
   );
   const [candidate, setCandidate] = useState<CourseDocument | null>(null);
+  const [hiddenLessons, setHiddenLessons] = useState<number[]>([]);
+  const [impact, setImpact] = useState<{
+    attempts: number;
+    enrolments: number;
+    progress: number;
+  } | null>(null);
   const [proposal, setProposal] = useState<{
     lesson: number;
     block: number;
@@ -90,6 +100,21 @@ export function CourseStudio({ teacher = false }: { teacher?: boolean }) {
       .then(setRows)
       .catch((e) => setMessage(e.message));
   }, []);
+  useEffect(() => {
+    if (!selected) return;
+    let active = true;
+    setImpact(null);
+    request(`/api/courses?learnerImpact=${selected.id}`)
+      .then((data) => {
+        if (active) setImpact(data);
+      })
+      .catch(() => {
+        if (active) setImpact(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [selected]);
   async function run(action: () => Promise<void>) {
     setBusy(true);
     setMessage("");
@@ -109,6 +134,7 @@ export function CourseStudio({ teacher = false }: { teacher?: boolean }) {
     setVisibility(row.visibility);
     setOutline(null);
     setCandidate(null);
+    setHiddenLessons([]);
     setProposal(null);
     setTab("edit");
     setGoals({
@@ -165,6 +191,7 @@ export function CourseStudio({ teacher = false }: { teacher?: boolean }) {
     if (!outline || !document) return;
     const approved = outlineSchema.parse(outline);
     const checkedGoals = goalsSchema.parse(goals);
+    setHiddenLessons([]);
     const next = {
       ...document,
       title: approved.title,
@@ -189,8 +216,47 @@ export function CourseStudio({ teacher = false }: { teacher?: boolean }) {
     next.estimatedMinutes = next.lessons.reduce((n, l) => n + l.minutes, 0);
     setCandidate(parseCourse(next));
     setMessage(
-      "Review the proposal. Accepting changes only your editor; save separately.",
+      "Review the proposal lesson by lesson. Accepting keeps ids at the same position and only changes the editor.",
     );
+  }
+  const hasRecords = !!impact && impact.attempts + impact.enrolments + impact.progress > 0;
+  const blockReason =
+    selected && selected.status !== "draft"
+      ? "This course is published or archived. Replacing the whole draft is blocked so existing lesson and activity IDs stay attached to learner records. Accept one lesson at a time, or edit by hand."
+      : hasRecords
+        ? "Learner records already exist for this course. Replacing the whole draft is blocked. Accept one lesson at a time to keep IDs at the same position."
+        : null;
+  function acceptLesson(index: number) {
+    if (!document || !candidate) return;
+    try {
+      setDocument(acceptProposalLesson(document, candidate.lessons[index], index));
+      setHiddenLessons((current) => (current.includes(index) ? current : [...current, index]));
+      setMessage("Lesson accepted into the editor. IDs at that position were kept. Save separately.");
+    } catch (error) {
+      setMessage((error as Error).message);
+    }
+  }
+  function acceptRemaining() {
+    if (!document || !candidate || blockReason) return;
+    if (outline && candidate.lessons.length !== outline.lessons.length) return;
+    try {
+      if (hiddenLessons.length === 0) {
+        setDocument(mergeCourseDraft(document, candidate));
+      } else {
+        const hidden = new Set(hiddenLessons);
+        let next = document;
+        candidate.lessons.forEach((lesson, index) => {
+          if (!hidden.has(index)) next = acceptProposalLesson(next, lesson, index);
+        });
+        setDocument(next);
+      }
+      setCandidate(null);
+      setHiddenLessons([]);
+      setTab("edit");
+      setMessage("Proposal merged into the editor. Existing IDs were kept by position. Save separately.");
+    } catch (error) {
+      setMessage((error as Error).message);
+    }
   }
   return (
     <div className="mx-auto max-w-6xl space-y-6 px-4 py-8">
@@ -420,6 +486,25 @@ export function CourseStudio({ teacher = false }: { teacher?: boolean }) {
                       )}
                     </>
                   )}
+                  {teacher && selected.status !== "archived" && (
+                    <button
+                      disabled={busy}
+                      className={secondary}
+                      onClick={() =>
+                        run(async () => {
+                          if (
+                            !confirm(
+                              "Archive this course? Learners keep their records, and it leaves the catalogue.",
+                            )
+                          )
+                            return;
+                          await save("archived", "private");
+                        })
+                      }
+                    >
+                      Archive
+                    </button>
+                  )}
                   {selected.status === "draft" && (
                     <button
                       disabled={busy}
@@ -428,7 +513,7 @@ export function CourseStudio({ teacher = false }: { teacher?: boolean }) {
                         run(async () => {
                           if (
                             !confirm(
-                              "Delete this course and its learning records?",
+                              "Delete this draft? Courses with learner records cannot be deleted; archive those instead.",
                             )
                           )
                             return;
@@ -785,14 +870,17 @@ export function CourseStudio({ teacher = false }: { teacher?: boolean }) {
                           Review proposed change
                         </h2>
                         <div className="grid gap-3 md:grid-cols-2">
-                          <div>
-                            <h3>Before</h3>
-                            <pre className="overflow-auto whitespace-pre-wrap text-xs">
-                              {JSON.stringify(proposal.before.config, null, 2)}
-                            </pre>
-                          </div>
-                          <div>
-                            <h3>After</h3>
+                          <ActivitySummary
+                            title="Before"
+                            activity={proposal.before}
+                            compareTo={proposal.after}
+                          />
+                          <div className="space-y-3">
+                            <ActivitySummary
+                              title="Proposed"
+                              activity={proposal.after}
+                              compareTo={proposal.before}
+                            />
                             <ActivityEditor
                               activity={proposal.after}
                               onChange={(after) =>
@@ -1041,41 +1129,28 @@ export function CourseStudio({ teacher = false }: { teacher?: boolean }) {
                       </>
                     )}
                     {candidate && (
-                      <>
-                        <h2 className="text-xl font-semibold">
-                          3. Review generated content
-                        </h2>
-                        <p>
-                          Current course: {document.lessons.length} lesson(s).
-                          Proposal: {candidate.lessons.length} lesson(s).
-                          Acceptance replaces the editor’s lessons; existing
-                          records retain their original IDs.
-                        </p>
-                        <pre className="max-h-96 overflow-auto whitespace-pre-wrap rounded bg-stone-50 p-4 text-xs">
-                          {JSON.stringify(candidate, null, 2)}
-                        </pre>
-                        <button
-                          disabled={
-                            busy ||
-                            candidate.lessons.length !== outline?.lessons.length
-                          }
-                          className={primary}
-                          onClick={() => {
-                            setDocument(candidate);
-                            setCandidate(null);
-                            setTab("edit");
-                          }}
-                        >
-                          Accept into editor & refine
-                        </button>
-                        <button
-                          disabled={busy}
-                          className={`${secondary} ml-2`}
-                          onClick={() => setCandidate(null)}
-                        >
-                          Reject proposal
-                        </button>
-                      </>
+                      <DraftReview
+                        current={document}
+                        proposal={candidate}
+                        hidden={hiddenLessons}
+                        blockedReason={
+                          candidate.lessons.length !== outline?.lessons.length
+                            ? "Generation is incomplete, so the whole proposal cannot be accepted."
+                            : blockReason
+                        }
+                        busy={busy}
+                        onAcceptLesson={acceptLesson}
+                        onRejectLesson={(index) =>
+                          setHiddenLessons((current) =>
+                            current.includes(index) ? current : [...current, index],
+                          )
+                        }
+                        onAcceptAll={acceptRemaining}
+                        onRejectAll={() => {
+                          setCandidate(null);
+                          setHiddenLessons([]);
+                        }}
+                      />
                     )}
                   </section>
                 )}

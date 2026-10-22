@@ -9,7 +9,7 @@ import { buttonPrimary } from "@/components/blocks/BlockCard";
 type Report = {
   course: CourseRecord;
   enrolments: { student_id: string }[];
-  invitations: { email: string }[];
+  invitations: { email: string; course_id?: string }[];
   profiles: { id: string; display_name: string }[];
   progress: {
     user_id: string;
@@ -80,6 +80,27 @@ export function Analytics({ courseId }: { courseId: string }) {
       setBusy(false);
     }
   }
+  async function remove(query: string) {
+    setBusy(true);
+    setMessage("");
+    try {
+      const res = await fetch(`/api/enrolments?courseId=${courseId}&${query}`, {
+        method: "DELETE",
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error);
+      setMessage(
+        query.startsWith("email=")
+          ? "Invitation revoked. A student who already joined stays enrolled until you remove them."
+          : "Student removed from the course. Their submitted attempts are kept.",
+      );
+      await load();
+    } catch (e) {
+      setMessage((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
   const participants =
     data?.enrolments.filter((e) =>
       data.attempts.some((a) => a.user_id === e.student_id),
@@ -128,6 +149,7 @@ export function Analytics({ courseId }: { courseId: string }) {
                   <th>Lessons complete</th>
                   <th>Attempts</th>
                   <th>Quiz results</th>
+                  <th>Roster</th>
                 </tr>
               </thead>
               <tbody>
@@ -180,12 +202,37 @@ export function Analytics({ courseId }: { courseId: string }) {
                               .join(", ")
                           : "—"}
                       </td>
+                      <td>
+                        <button
+                          className="text-red-700 underline"
+                          disabled={busy}
+                          onClick={() => remove(`studentId=${e.student_id}`)}
+                        >
+                          Remove
+                        </button>
+                      </td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
           </div>
+          {!!data.invitations.length && (
+            <ul className="space-y-2 text-sm">
+              {data.invitations.map((invitation) => (
+                <li key={invitation.email} className="flex items-center justify-between gap-3 rounded border px-3 py-2">
+                  <span>Pending invitation · {invitation.email}</span>
+                  <button
+                    className="text-red-700 underline"
+                    disabled={busy}
+                    onClick={() => remove(`email=${encodeURIComponent(invitation.email)}`)}
+                  >
+                    Revoke
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
           {data.attempts.map((a) => (
             <details className="rounded border p-3" key={a.id}>
               <summary>
@@ -195,8 +242,9 @@ export function Analytics({ courseId }: { courseId: string }) {
                 {a.course_revision}
               </summary>
               <p className="my-2 whitespace-pre-wrap">{a.response}</p>
-              <p>{a.feedback.summary}</p>
-              {a.feedback.criteria.map((c, i) => (
+              <p>{a.feedback?.summary}</p>
+              {a.feedback?.characterReply && <p>Character: {a.feedback.characterReply}</p>}
+              {a.feedback?.criteria.map((c, i) => (
                 <p className="mt-2" key={i}>
                   <strong>
                     {c.criterion}: {c.assessment}.
@@ -204,7 +252,7 @@ export function Analytics({ courseId }: { courseId: string }) {
                   {c.evidence} {c.suggestion}
                 </p>
               ))}
-              <p className="mt-2">Next: {a.feedback.nextStep}</p>
+              <p className="mt-2">Next: {a.feedback?.nextStep}</p>
             </details>
           ))}
           {!data.attempts.length && (

@@ -1,4 +1,5 @@
-import { apiError } from "@/lib/supabase/server";
+import { apiError, requireAccount } from "@/lib/supabase/server";
+import { enforceQuota } from "@/lib/ai/quota";
 import { z } from "zod";
 import { readLesson } from "@/lib/learning/repository";
 import { MAX_CHARS, badRequest, describeLearner, generateJson, missingKey } from "@/lib/ai/gemini";
@@ -15,8 +16,10 @@ export type PromptFeedback = z.infer<typeof Feedback> & { rubric: string[] };
 
 export async function POST(req: Request) {
   try {
+  const { db, user } = await requireAccount();
   const noKey = missingKey();
   if (noKey) return noKey;
+  await enforceQuota(db, user.id, "prompt-lab");
 
   const { courseId, lessonId, blockId, profile, draft } = await req.json();
   const block = (await readLesson(courseId, lessonId))?.lesson.blocks.find((b) => b.id === blockId);

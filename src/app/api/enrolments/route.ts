@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { apiError, requireAccount } from "@/lib/supabase/server";
+import { apiError, HttpError, requireAccount } from "@/lib/supabase/server";
 import { ownedCourse } from "@/lib/learning/repository";
 export async function POST(req: Request) {
   try {
@@ -26,6 +26,37 @@ export async function POST(req: Request) {
     );
     if (error) throw error;
     return Response.json({ invited: new Set(emails).size });
+  } catch (e) {
+    return apiError(e);
+  }
+}
+export async function DELETE(req: Request) {
+  try {
+    const { db, user } = await requireAccount(true);
+    const url = new URL(req.url);
+    const courseId = url.searchParams.get("courseId") ?? "";
+    await ownedCourse(courseId, db, user.id);
+    const studentId = url.searchParams.get("studentId");
+    const email = url.searchParams.get("email")?.trim().toLowerCase();
+    if (studentId) {
+      const { error } = await db
+        .from("course_enrolments")
+        .delete()
+        .eq("course_id", courseId)
+        .eq("student_id", studentId);
+      if (error) throw error;
+      return Response.json({ removed: "student" });
+    }
+    if (email) {
+      const { error } = await db
+        .from("course_invitations")
+        .delete()
+        .eq("course_id", courseId)
+        .eq("email", email);
+      if (error) throw error;
+      return Response.json({ removed: "invitation" });
+    }
+    throw new HttpError(400, "Specify a student or an invitation email.");
   } catch (e) {
     return apiError(e);
   }

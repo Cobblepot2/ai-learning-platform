@@ -34,7 +34,7 @@ export type CourseDocument = z.infer<typeof courseSchema>;
 export type CourseRecord = {
   id: string;
   owner_id: string;
-  status: "draft" | "published";
+  status: "draft" | "published" | "archived";
   visibility: "private" | "enrolled" | "public";
   revision: number;
   document: CourseDocument;
@@ -53,6 +53,48 @@ export function parseCourse(value: unknown): CourseDocument {
     }
   }
   return course;
+}
+
+function mergeLesson(
+  existing: CourseDocument["lessons"][number] | undefined,
+  proposed: CourseDocument["lessons"][number],
+): CourseDocument["lessons"][number] {
+  if (!existing) return proposed;
+  return {
+    ...proposed,
+    id: existing.id,
+    blocks: proposed.blocks.map((block, index) => {
+      const previous = existing.blocks[index];
+      return previous ? { ...block, id: previous.id } : block;
+    }),
+  };
+}
+
+/** Whole-draft accept: proposal content, course id and positional lesson/activity ids. */
+export function mergeCourseDraft(
+  current: CourseDocument,
+  proposal: CourseDocument,
+): CourseDocument {
+  return parseCourse({
+    ...proposal,
+    id: current.id,
+    lessons: proposal.lessons.map((lesson, index) =>
+      mergeLesson(current.lessons[index], lesson),
+    ),
+  });
+}
+
+/** One lesson from a draft, written at the same index. Other lessons stay put. */
+export function acceptProposalLesson(
+  current: CourseDocument,
+  proposed: CourseDocument["lessons"][number],
+  index: number,
+): CourseDocument {
+  const lessons = [...current.lessons];
+  const merged = mergeLesson(lessons[index], proposed);
+  if (index < lessons.length) lessons[index] = merged;
+  else lessons.push(merged);
+  return parseCourse({ ...current, lessons });
 }
 export function newCourse(): CourseDocument {
   return {

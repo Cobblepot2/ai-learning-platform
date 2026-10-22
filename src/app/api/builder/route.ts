@@ -8,11 +8,13 @@ import {
   refineActivity,
 } from "@/lib/learning/generation";
 import { missingKey } from "@/lib/ai/gemini";
+import { enforceQuota } from "@/lib/ai/quota";
 export async function POST(req: Request) {
   try {
-    await requireAccount();
+    const { db, user } = await requireAccount();
     const missing = missingKey();
     if (missing) return missing;
+    await enforceQuota(db, user.id, "generation");
     const body = await req.json();
     let proposal;
     if (body.action === "outline")
