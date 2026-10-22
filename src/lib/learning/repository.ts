@@ -1,4 +1,4 @@
-import { getCourse as staticCourse, courses } from "@/content/courses";
+import { getCourse as staticCourse, catalogCourses } from "@/content/courses";
 import { serverDb, HttpError } from "@/lib/supabase/server";
 import { adaptStaticCourse } from "./legacy";
 import { interpretStoredCourse } from "./read";
@@ -38,7 +38,7 @@ export async function readLesson(courseId: string, lessonId: string) {
 }
 export async function listCourses(): Promise<Course[]> {
   const db = await serverDb();
-  if (!db) return courses.map(adaptStaticCourse);
+  if (!db) return catalogCourses.map(adaptStaticCourse);
   const { data, error } = await db
     .from("courses")
     .select("document")
@@ -68,7 +68,7 @@ export async function listCourses(): Promise<Course[]> {
       console.error("Skipping malformed course", error);
     }
   }
-  return [...courses.map(adaptStaticCourse), ...published];
+  return [...catalogCourses.map(adaptStaticCourse), ...published];
 }
 export async function ownedCourse(
   id: string,
