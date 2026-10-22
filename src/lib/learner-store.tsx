@@ -12,12 +12,13 @@ import type { BlockResult, LearnerProfile } from "@/lib/types";
  * written to the database, and the database copy wins on load.
  */
 
-interface LessonProgress {
+export interface LessonProgress {
   completedAt?: string;
   blocks: Record<string, BlockResult>;
 }
 
-type ProgressMap = Record<string, LessonProgress>; // key: `${courseId}/${lessonId}`
+/** key: `${courseId}/${lessonId}` */
+export type ProgressMap = Record<string, LessonProgress>;
 
 interface LearnerState {
   ready: boolean;

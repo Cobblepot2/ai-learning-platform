@@ -56,7 +56,13 @@ function move<T>(array: T[], index: number, direction: number): T[] {
   [next[index], next[target]] = [next[target], next[index]];
   return next;
 }
-export function CourseStudio({ teacher = false }: { teacher?: boolean }) {
+export function CourseStudio({
+  teacher = false,
+  initialCourseId,
+}: {
+  teacher?: boolean;
+  initialCourseId?: string;
+}) {
   const [account, setAccount] = useState<{ isTeacher: boolean } | null>(null);
   const [rows, setRows] = useState<CourseRecord[]>([]);
   const [selected, setSelected] = useState<CourseRecord | null>(null);
@@ -97,9 +103,30 @@ export function CourseStudio({ teacher = false }: { teacher?: boolean }) {
         setAccount(a);
         return request("/api/courses");
       })
-      .then(setRows)
+      .then((rows: CourseRecord[]) => {
+        setRows(rows);
+        if (!initialCourseId) return;
+        const target = rows.find((row) => row.id === initialCourseId);
+        if (!target) return;
+        setSelected(target);
+        setDocument(structuredClone(target.document));
+        setVisibility(target.visibility);
+        setOutline(null);
+        setCandidate(null);
+        setHiddenLessons([]);
+        setProposal(null);
+        setTab("edit");
+        setGoals({
+          ...initialGoals,
+          topic: target.document.domain,
+          audience: target.document.targetAudience,
+          objectives: target.document.objectives.join("\n"),
+          difficulty: target.document.level,
+          language: target.document.language,
+        });
+      })
       .catch((e) => setMessage(e.message));
-  }, []);
+  }, [initialCourseId]);
   useEffect(() => {
     if (!selected) return;
     let active = true;

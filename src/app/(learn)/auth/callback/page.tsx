@@ -25,10 +25,25 @@ export default function AuthCallbackPage() {
     // The browser client exchanges the ?code= itself while it initialises, and
     // getSession() waits for that. Exchanging the code again here would fail
     // because the PKCE verifier has already been used.
-    supabase.auth.getSession().then(({ data }) => {
+    supabase.auth.getSession().then(async ({ data }) => {
       // Full reload so the learner store picks up the new session and remote progress.
-      if (data.session) window.location.replace("/dashboard");
-      else setError("This sign-in link has expired or was opened in a different browser. Please sign in again.");
+      if (!data.session) {
+        setError(
+          "This sign-in link has expired or was opened in a different browser. Please sign in again.",
+        );
+        return;
+      }
+      let destination = "/";
+      try {
+        const res = await fetch("/api/me", { cache: "no-store" });
+        if (res.ok) {
+          const account = await res.json();
+          if (account?.isTeacher) destination = "/teach";
+        }
+      } catch {
+        // Fall back to the learner home if role lookup is unavailable.
+      }
+      window.location.replace(destination);
     });
   }, [router]);
 

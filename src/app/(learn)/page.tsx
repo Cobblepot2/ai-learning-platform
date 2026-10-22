@@ -1,6 +1,11 @@
 import Link from "next/link";
 import { CourseCard } from "@/components/CourseCard";
+import { LearnerHome } from "@/components/learning/LearnerHome";
 import { listCourses } from "@/lib/learning/repository";
+import { serverDb } from "@/lib/supabase/server";
+import type { Course } from "@/lib/types";
+
+export const dynamic = "force-dynamic";
 
 const FORMATS = [
   { icon: "💬", title: "AI role-play", text: "Practise a conversation and reflect on evidence from your responses." },
@@ -9,8 +14,20 @@ const FORMATS = [
   { icon: "🧑‍🏫", title: "Personal tutor", text: "An AI tutor that knows the lesson and explains it your way." },
 ];
 
+async function hasSession() {
+  const db = await serverDb();
+  if (!db) return false;
+  const { data } = await db.auth.getUser();
+  return !!data.user;
+}
+
 export default async function Home() {
-  const courses = await listCourses();
+  const [courses, signedIn] = await Promise.all([listCourses(), hasSession()]);
+  if (signedIn) return <LearnerHome courses={courses} />;
+  return <Landing courses={courses} />;
+}
+
+function Landing({ courses }: { courses: Course[] }) {
   return (
     <div className="mx-auto max-w-6xl px-4 pb-20">
       <section className="py-14 sm:py-20">

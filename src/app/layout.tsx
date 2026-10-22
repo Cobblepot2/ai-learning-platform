@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { NavBar } from "@/components/NavBar";
 import { LearnerProvider } from "@/lib/learner-store";
 import "./globals.css";
 
@@ -27,10 +26,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}>
-        <LearnerProvider>
-          <NavBar />
-          <main>{children}</main>
-        </LearnerProvider>
+        <LearnerProvider>{children}</LearnerProvider>
       </body>
     </html>
   );
