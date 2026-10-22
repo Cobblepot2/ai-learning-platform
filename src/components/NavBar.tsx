@@ -50,14 +50,12 @@ export function NavBar() {
           </Link>
           {user ? (
             <>
+              <Link href="/my-courses" className={navLink}>
+                My courses
+              </Link>
               <Link href="/dashboard" className={navLink}>
                 My progress
               </Link>
-              {isTeacher && (
-                <Link href="/studio" className={navLink}>
-                  Teach
-                </Link>
-              )}
               <details className="relative">
                 <summary className="flex cursor-pointer list-none items-center gap-2 rounded-md px-2 py-1 hover:bg-stone-100 [&::-webkit-details-marker]:hidden">
                   <span className="grid h-8 w-8 place-items-center rounded-full bg-indigo-100 text-sm font-semibold text-indigo-700">
@@ -74,17 +72,11 @@ export function NavBar() {
                   <p className="truncate px-3 py-2 text-xs text-stone-500">
                     {user.email}
                   </p>
-                  <Link href="/my-courses" className={menuLink}>
-                    My courses
-                  </Link>
-                  <Link href="/dashboard" className={menuLink}>
-                    My progress
-                  </Link>
                   <Link href="/onboarding" className={menuLink}>
                     Profile
                   </Link>
                   {isTeacher && (
-                    <Link href="/studio" className={menuLink}>
+                    <Link href="/teach" className={menuLink}>
                       Teaching studio
                     </Link>
                   )}
