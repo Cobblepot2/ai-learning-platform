@@ -174,3 +174,95 @@ test("student preview supports feedback, revision and separate attempts without 
   expect(submissions).toHaveLength(2);
   expect(submissions.every((s) => s.preview)).toBe(true);
 });
+test("onboarding saves learning preferences and loads them again", async ({
+  page,
+}) => {
+  await page.goto("/onboarding");
+  await expect(
+    page.getByRole("heading", { name: "Make learning yours." }),
+  ).toBeVisible();
+  await page.getByLabel(/Display name/).fill("Mei");
+  await page.getByText("简体中文", { exact: true }).click();
+  await page
+    .getByText("Practise and apply what I learn", { exact: true })
+    .click();
+  await page.getByText("Step-by-step guidance", { exact: true }).click();
+  await page.getByRole("button", { name: "Save preferences" }).click();
+  await expect(page.getByRole("status")).toContainText("Preferences saved.");
+  await expect(
+    page.getByRole("link", { name: "Skip for now" }),
+  ).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByLabel(/Display name/)).toHaveValue("Mei");
+  await expect(page.getByRole("radio", { name: "简体中文" })).toBeChecked();
+  await expect(
+    page.getByRole("radio", { name: "Step-by-step guidance" }),
+  ).toBeChecked();
+});
+
+test("legacy onboarding data is preserved and mapped to new preferences", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      "learner-profile",
+      JSON.stringify({
+        displayName: "Old learner",
+        background: "cs_graduate",
+        experience: "comfortable",
+        goal: "career",
+        language: "zh",
+      }),
+    );
+  });
+  await page.goto("/onboarding");
+  await expect(page.getByLabel(/Display name/)).toHaveValue("Old learner");
+  await expect(page.getByRole("radio", { name: "繁體中文" })).toBeChecked();
+  await expect(
+    page.getByRole("radio", { name: "Build practical or professional skills" }),
+  ).toBeChecked();
+  await page.getByRole("button", { name: "Save preferences" }).click();
+  await expect(page.getByRole("status")).toContainText("Preferences saved.");
+  const stored = await page.evaluate(() =>
+    JSON.parse(window.localStorage.getItem("learner-profile") ?? "{}"),
+  );
+  expect(stored.background).toBe("cs_graduate");
+  expect(stored.experience).toBe("comfortable");
+  expect(stored.learningStyle).toBe("balanced");
+  expect(stored.language).toBe("zh-Hant");
+});
+
+test("course-level preferences stay scoped to one course", async ({ page }) => {
+  await page.goto("/courses/se-essentials");
+  await page.getByText("Make the tutor fit this course").click();
+  await page.getByText("New to this subject", { exact: true }).click();
+  await page.getByText("Understand new concepts", { exact: true }).click();
+  await page.getByRole("button", { name: "Save for this course" }).click();
+  await expect(page.getByRole("status")).toContainText(
+    "Saved for this course.",
+  );
+  await expect(
+    page.getByText("Optional. Your level here is saved for this course only. Preferences set."),
+  ).toBeVisible();
+
+  await page.goto("/courses/ai-coding-agents");
+  await expect(
+    page.getByText(
+      "Optional. Your level here is saved for this course only. Preferences set.",
+    ),
+  ).not.toBeVisible();
+  await page.getByText("Make the tutor fit this course").click();
+  await page.getByText("Some experience", { exact: true }).click();
+  await page.getByRole("button", { name: "Save for this course" }).click();
+  await expect(page.getByRole("status")).toContainText(
+    "Saved for this course.",
+  );
+
+  await page.goto("/courses/se-essentials");
+  await page.getByText("Make the tutor fit this course").click();
+  await expect(
+    page.getByRole("radio", { name: "New to this subject" }),
+  ).toBeChecked();
+});
+

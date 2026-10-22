@@ -14,7 +14,7 @@ const SUGGESTIONS = [
 ];
 
 export function TutorPanel({ courseId, lessonId }: { courseId: string; lessonId: string }) {
-  const { profile, logEvent } = useLearner();
+  const { profile, coursePreferences, logEvent } = useLearner();
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -38,7 +38,7 @@ export function TutorPanel({ courseId, lessonId }: { courseId: string; lessonId:
     setBusy(true);
     setError(null);
     try {
-      await postStream("/api/tutor", { courseId, lessonId, profile, messages: history }, (text) =>
+      await postStream("/api/tutor", { courseId, lessonId, profile, coursePreference: coursePreferences[courseId] ?? null, messages: history }, (text) =>
         setTurns([...history, { role: "assistant", content: text }]),
       );
       logEvent(courseId, lessonId, "tutor_message");
