@@ -48,10 +48,6 @@ function coerceBlock(value: unknown, notes: string[], seen: Set<string>): Lesson
     return null;
   }
   const record = value as Record<string, unknown>;
-  if (record.type !== "activity") {
-    notes.push(`Dropped a non-activity block: ${parsed.error.message}`);
-    return null;
-  }
   const id =
     typeof record.id === "string" && record.id.trim()
       ? record.id.trim().slice(0, 300)

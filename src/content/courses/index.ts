@@ -26,29 +26,13 @@ export function getLesson(courseId: string, lessonId: string): { course: Course;
 /** Plain-text version of a lesson, given to the AI tutor as context. */
 export function lessonAsText(lesson: Lesson): string {
   return lesson.blocks
-    .map((b) => {
-      switch (b.type) {
-        case "activity": {
-          const parsed = validateActivity(b);
-          if (!parsed.success) return `Unsupported activity (${b.activityType}).`;
-          return JSON.stringify({
-            objectives: parsed.data.objectives,
-            ...((activityForTutor(parsed.data) as object) ?? {}),
-          });
-        }
-        case "text":
-          return b.markdown;
-        case "quiz":
-          return `Quiz: ${b.question}\nOptions: ${b.options.join(" | ")}`;
-        case "ordering":
-          return `Ordering exercise: ${b.prompt}`;
-        case "roleplay":
-          return `Role-play exercise: ${b.scenario}`;
-        case "prompt-lab":
-          return `Writing exercise: ${b.task}`;
-        case "code-review":
-          return `Code review exercise: ${b.context}\n\`\`\`${b.language}\n${b.code}\n\`\`\``;
-      }
+    .map((block) => {
+      const parsed = validateActivity(block);
+      if (!parsed.success) return `Unsupported activity (${block.activityType}).`;
+      return JSON.stringify({
+        objectives: parsed.data.objectives,
+        ...((activityForTutor(parsed.data) as object) ?? {}),
+      });
     })
     .join("\n\n");
 }

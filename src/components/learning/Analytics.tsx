@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { CourseRecord } from "@/lib/learning/model";
 import {
@@ -180,8 +181,13 @@ export function Analytics({ courseId }: { courseId: string }) {
                   return (
                     <tr className="border-t" key={e.student_id}>
                       <td className="py-3">
-                        {data.profiles.find((p) => p.id === e.student_id)
-                          ?.display_name || e.student_id}
+                        <Link
+                          href={`/teach/courses/${courseId}/students/${e.student_id}`}
+                          className="font-medium text-indigo-700 hover:underline"
+                        >
+                          {data.profiles.find((p) => p.id === e.student_id)
+                            ?.display_name || e.student_id}
+                        </Link>
                       </td>
                       <td>
                         {completed}/{data.course.document.lessons.length} (

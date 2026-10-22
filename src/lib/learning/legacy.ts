@@ -1,5 +1,5 @@
 import { BACKGROUND_LABELS, type Background, type Course } from "@/lib/types";
-/** Preserve legacy IDs and blocks while supplying domain-neutral metadata. */
+/** Fill domain-neutral metadata defaults for static catalogue courses. */
 export function adaptStaticCourse(course: Course): Course {
   return {
     ...course,

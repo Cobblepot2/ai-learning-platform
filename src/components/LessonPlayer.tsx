@@ -3,13 +3,7 @@
 import Link from "next/link";
 import { ActivityView } from "@/components/learning/ActivityView";
 import { useState } from "react";
-import { Markdown } from "@/components/Markdown";
 import { TutorPanel } from "@/components/TutorPanel";
-import { CodeReviewBlockView } from "@/components/blocks/CodeReviewBlockView";
-import { OrderingBlockView } from "@/components/blocks/OrderingBlockView";
-import { PromptLabBlockView } from "@/components/blocks/PromptLabBlockView";
-import { QuizBlockView } from "@/components/blocks/QuizBlockView";
-import { RoleplayBlockView } from "@/components/blocks/RoleplayBlockView";
 import { buttonPrimary } from "@/components/blocks/BlockCard";
 import { isDatabaseCourseId } from "@/lib/learning/ids";
 import { useLearner } from "@/lib/learner-store";
@@ -24,7 +18,9 @@ export function LessonPlayer({ course, lesson, preview = false }: { course: Cour
   const lessonProgress = progress[`${course.id}/${lesson.id}`];
   const results = preview ? previewResults : lessonProgress?.blocks ?? {};
 
-  const activities = lesson.blocks.filter((b) => b.type !== "text" && !(b.type === "activity" && b.activityType === "reading"));
+  const activities = lesson.blocks.filter(
+    (block) => !(block.type === "activity" && block.activityType === "reading"),
+  );
   const doneCount = activities.filter((b) => results[b.id]?.done).length;
   const allDone = doneCount === activities.length;
   const lessonIsComplete = !preview && !!lessonProgress?.completedAt && allDone;
@@ -33,30 +29,19 @@ export function LessonPlayer({ course, lesson, preview = false }: { course: Cour
   const next = course.lessons[index + 1];
 
   function render(block: LessonBlock) {
-    const common = {
-      result: results[block.id],
-      onResult: (r: BlockResult) => preview ? setPreviewResults(prev => ({ ...prev, [block.id]: r })) : recordBlock(course.id, lesson.id, block.id, r),
-    };
-    switch (block.type) {
-      case "activity":
-        return <ActivityView block={block} courseId={course.id} lessonId={lesson.id} preview={preview} {...common} />;
-      case "text":
-        return (
-          <article className="px-1">
-            <Markdown>{block.markdown}</Markdown>
-          </article>
-        );
-      case "quiz":
-        return <QuizBlockView block={block} {...common} />;
-      case "ordering":
-        return <OrderingBlockView block={block} {...common} />;
-      case "code-review":
-        return <CodeReviewBlockView block={block} {...common} />;
-      case "roleplay":
-        return <RoleplayBlockView courseId={course.id} lessonId={lesson.id} block={block} {...common} />;
-      case "prompt-lab":
-        return <PromptLabBlockView courseId={course.id} lessonId={lesson.id} block={block} {...common} />;
-    }
+    return (
+      <ActivityView
+        block={block}
+        courseId={course.id}
+        lessonId={lesson.id}
+        preview={preview}
+        onResult={(result: BlockResult) =>
+          preview
+            ? setPreviewResults((prev) => ({ ...prev, [block.id]: result }))
+            : recordBlock(course.id, lesson.id, block.id, result)
+        }
+      />
+    );
   }
 
   if (!ready) return <p role="status" className="mx-auto max-w-6xl px-4 py-8">Loading your progress…</p>;

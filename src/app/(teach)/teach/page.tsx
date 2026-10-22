@@ -54,7 +54,7 @@ export default async function TeachingHomePage() {
           text: `${totals.pendingInvitations} invitation${
             totals.pendingInvitations === 1 ? "" : "s"
           } not yet claimed`,
-          href: "/teach/courses",
+          href: "/teach/invitations",
         }
       : null,
   ].filter((item): item is { text: string; href: string } => !!item);
@@ -76,7 +76,7 @@ export default async function TeachingHomePage() {
           <Link href="/teach/courses" className={buttonSecondary}>
             All courses
           </Link>
-          <Link href="/studio" className={buttonPrimary}>
+          <Link href="/teach/courses/new" className={buttonPrimary}>
             New course
           </Link>
         </div>
@@ -102,13 +102,13 @@ export default async function TeachingHomePage() {
           label="Students"
           value={totals.students}
           hint="Unique enrolled learners"
-          href="/teach/courses"
+          href="/teach/students"
         />
         <StatCard
           label="Pending invitations"
           value={totals.pendingInvitations}
           hint="Not yet claimed"
-          href="/teach/courses"
+          href="/teach/invitations"
         />
       </section>
 
@@ -151,7 +151,7 @@ export default async function TeachingHomePage() {
             {overview.courses.slice(0, 4).map((course) => (
               <Link
                 key={course.id}
-                href={`/studio?courseId=${course.id}`}
+                href={`/teach/courses/${course.id}`}
                 className="group rounded-2xl border border-stone-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-md"
               >
                 <div className="flex items-start justify-between gap-3">
@@ -186,7 +186,7 @@ export default async function TeachingHomePage() {
               Create a course, review the AI-assisted draft and publish it when
               it is ready for students.
             </p>
-            <Link href="/studio" className={`${buttonPrimary} mt-5`}>
+            <Link href="/teach/courses/new" className={`${buttonPrimary} mt-5`}>
               Create your first course
             </Link>
           </div>

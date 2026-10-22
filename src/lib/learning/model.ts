@@ -38,6 +38,8 @@ export type CourseRecord = {
   visibility: "private" | "enrolled" | "public";
   revision: number;
   document: CourseDocument;
+  created_at?: string;
+  updated_at?: string;
 };
 export function parseCourse(value: unknown): CourseDocument {
   const course = courseSchema.parse(value);

@@ -25,7 +25,7 @@ test("unauthenticated write APIs fail closed without database configuration", as
 });
 // UI integration fixtures exercise the actual React builder. Cloud AI and
 // Supabase are mocked explicitly; SQL permissions are tested separately.
-test("teacher edits an English course, reviews AI change and publishes explicitly", async ({
+test("learner edits a private course and reviews an AI change", async ({
   page,
 }) => {
   let document = exampleCourse("english");
@@ -59,7 +59,7 @@ test("teacher edits an English course, reviews AI change and publishes explicitl
       },
     });
   });
-  await page.goto("/studio");
+  await page.goto("/my-courses");
   await page.getByRole("button", { name: document.title, exact: true }).click();
   await page
     .getByLabel("title", { exact: true })
@@ -79,101 +79,20 @@ test("teacher edits an English course, reviews AI change and publishes explicitl
   ).toBeVisible();
   await page.getByRole("button", { name: "Reject", exact: true }).click();
   expect(document.lessons[0].blocks[0].activityType).toBe("reading");
-  page.on("dialog", (d) => d.accept());
-  await page.getByLabel("Course access").selectOption("enrolled");
-  await page.getByRole("button", { name: "Publish reviewed course" }).click();
-  await expect(
-    page.getByRole("button", { name: "Unpublish", exact: true }),
-  ).toBeVisible();
-  expect(row.status).toBe("published");
+  expect(document.title).toBe("English communication workshop");
 });
-test("student cannot enter teaching studio", async ({ page }) => {
-  await page.route("**/api/me", (r) =>
-    r.fulfill({ json: { id: "student", isTeacher: false } }),
-  );
-  await page.route("**/api/courses", (r) => r.fulfill({ json: [] }));
-  await page.goto("/studio");
-  await expect(
-    page.getByRole("alert").filter({ hasText: "Instructor access required" }),
-  ).toContainText("Instructor access required");
-  await expect(
-    page.getByRole("button", { name: "Create course", exact: true }),
-  ).toHaveCount(0);
-});
-
-test("student preview supports feedback, revision and separate attempts without saving progress", async ({
+test("legacy studio links enter the guarded teaching workspace", async ({
   page,
 }) => {
-  const document = exampleCourse("english");
-  const row = {
-    id: document.id,
-    owner_id: "teacher",
-    status: "draft",
-    visibility: "private",
-    revision: 1,
-    document,
-  };
-  const submissions: { preview: boolean; response: string }[] = [];
-  await page.route("**/api/me", (r) =>
-    r.fulfill({ json: { id: "teacher", isTeacher: true } }),
-  );
-  await page.route("**/api/courses", (r) => r.fulfill({ json: [row] }));
-  await page.route("**/api/activities", (r) => {
-    const body = r.request().postDataJSON();
-    submissions.push(body);
-    return r.fulfill({
-      json: {
-        response: body.response,
-        score: null,
-        feedback: {
-          summary: "Your proposed handoff addresses the schedule.",
-          criteria: [
-            {
-              criterion: "A feasible compromise",
-              assessment: "developing",
-              evidence: body.response,
-              suggestion: "Specify the handoff time.",
-            },
-          ],
-          nextStep: "Add a concrete handoff time.",
-          characterReply: "Could you send the final figures by 10 AM?",
-        },
-      },
-    });
-  });
   await page.goto("/studio");
-  await page.getByRole("button", { name: document.title, exact: true }).click();
-  await page
-    .getByRole("button", { name: "Student preview", exact: true })
-    .click();
-  await page
-    .getByRole("textbox", { name: "Your response", exact: true })
-    .fill("I can finish the structure Wednesday.");
-  await page
-    .getByRole("button", { name: "Submit response", exact: true })
-    .click();
+  await expect(page).not.toHaveURL(/\/studio$/);
   await expect(
-    page.getByText("Add a concrete handoff time.", { exact: false }),
+    page.getByRole("heading", {
+      name: /Sign in|Instructor access required|Teaching workspace unavailable/,
+    }),
   ).toBeVisible();
-  await page
-    .getByRole("textbox", { name: "Your response", exact: true })
-    .fill("I will send the final figures Thursday at 10 AM.");
-  await page
-    .getByRole("button", {
-      name: "Submit improvement",
-      exact: true,
-    })
-    .click();
-  await expect(
-    page.getByText("2 recorded preview attempt(s)", { exact: true }),
-  ).toBeVisible();
-  await page.screenshot({
-    path: test.info().outputPath("student-preview.png"),
-    fullPage: true,
-  });
-  expect(submissions).toHaveLength(2);
-  expect(submissions.every((s) => s.preview)).toBe(true);
 });
+
 test("onboarding saves learning preferences and loads them again", async ({
   page,
 }) => {
@@ -266,3 +185,76 @@ test("course-level preferences stay scoped to one course", async ({ page }) => {
   ).toBeChecked();
 });
 
+test("student preview supports feedback, revision and separate attempts without saving progress", async ({
+  page,
+}) => {
+  const document = exampleCourse("english");
+  const row = {
+    id: document.id,
+    owner_id: "teacher",
+    status: "draft",
+    visibility: "private",
+    revision: 1,
+    document,
+  };
+  const submissions: { preview: boolean; response: string }[] = [];
+  await page.route("**/api/me", (r) =>
+    r.fulfill({ json: { id: "teacher", isTeacher: true } }),
+  );
+  await page.route("**/api/courses", (r) => r.fulfill({ json: [row] }));
+  await page.route("**/api/activities", (r) => {
+    const body = r.request().postDataJSON();
+    submissions.push(body);
+    return r.fulfill({
+      json: {
+        response: body.response,
+        score: null,
+        feedback: {
+          summary: "Your proposed handoff addresses the schedule.",
+          criteria: [
+            {
+              criterion: "A feasible compromise",
+              assessment: "developing",
+              evidence: body.response,
+              suggestion: "Specify the handoff time.",
+            },
+          ],
+          nextStep: "Add a concrete handoff time.",
+          characterReply: "Could you send the final figures by 10 AM?",
+        },
+      },
+    });
+  });
+  await page.goto("/my-courses");
+  await page.getByRole("button", { name: document.title, exact: true }).click();
+  await page
+    .getByRole("button", { name: "Student preview", exact: true })
+    .click();
+  await page
+    .getByRole("textbox", { name: "Your response", exact: true })
+    .fill("I can finish the structure Wednesday.");
+  await page
+    .getByRole("button", { name: "Submit response", exact: true })
+    .click();
+  await expect(
+    page.getByText("Add a concrete handoff time.", { exact: false }),
+  ).toBeVisible();
+  await page
+    .getByRole("textbox", { name: "Your response", exact: true })
+    .fill("I will send the final figures Thursday at 10 AM.");
+  await page
+    .getByRole("button", {
+      name: "Submit improvement",
+      exact: true,
+    })
+    .click();
+  await expect(
+    page.getByText("2 recorded preview attempt(s)", { exact: true }),
+  ).toBeVisible();
+  await page.screenshot({
+    path: test.info().outputPath("student-preview.png"),
+    fullPage: true,
+  });
+  expect(submissions).toHaveLength(2);
+  expect(submissions.every((s) => s.preview)).toBe(true);
+});

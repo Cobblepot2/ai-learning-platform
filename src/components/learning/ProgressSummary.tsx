@@ -83,9 +83,11 @@ export function CourseProgressList({
             {course.lessons.map((lesson) => {
               const p = progress[`${course.id}/${lesson.id}`];
               const activities = lesson.blocks.filter(
-                (b) =>
-                  b.type !== "text" &&
-                  !(b.type === "activity" && b.activityType === "reading"),
+                (block) =>
+                  !(
+                    block.type === "activity" &&
+                    block.activityType === "reading"
+                  ),
               );
               const done = activities.filter((b) => p?.blocks[b.id]?.done).length;
               return (

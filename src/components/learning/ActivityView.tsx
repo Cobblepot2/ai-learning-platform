@@ -294,6 +294,74 @@ function OrderingView(props: ViewProps & { block: Extract<LearningActivity, { ac
   );
 }
 
+function CodeReviewView(props: ViewProps & { block: Extract<LearningActivity, { activityType: "code-review" }> }) {
+  const config = props.block.config;
+  const [picked, setPicked] = useState<number[]>([]);
+  const state = useAttempts(props);
+  const lines = config.code.split("\n");
+  const solved = matching(state.history, props.block).some(
+    (row) => typeof row.score === "number" && row.score > 0,
+  );
+
+  function pick(line: number) {
+    if (solved || state.busy || picked.includes(line)) return;
+    const next = [...picked, line];
+    setPicked(next);
+    if (config.bugLines.includes(line)) {
+      void state.submit(JSON.stringify(next));
+    }
+  }
+
+  return (
+    <section className="space-y-4 rounded-2xl border bg-white p-6">
+      <Markdown>{config.context}</Markdown>
+      <div className="overflow-x-auto rounded-xl bg-stone-900 py-3 font-mono text-[13px] leading-6 text-stone-100">
+        {lines.map((text, index) => {
+          const line = index + 1;
+          const isBug = config.bugLines.includes(line);
+          const wasPicked = picked.includes(line);
+          const background = wasPicked
+            ? isBug
+              ? "bg-emerald-600/40"
+              : "bg-rose-600/30"
+            : solved && isBug
+              ? "bg-emerald-600/40"
+              : "hover:bg-white/10";
+          return (
+            <button
+              key={line}
+              type="button"
+              onClick={() => pick(line)}
+              disabled={solved || state.busy}
+              className={`flex w-full min-w-max items-start px-3 text-left ${background} ${
+                solved || state.busy ? "cursor-default" : "cursor-pointer"
+              }`}
+            >
+              <span className="mr-4 w-6 shrink-0 select-none text-right text-stone-500">
+                {line}
+              </span>
+              <span className="whitespace-pre">{text || " "}</span>
+            </button>
+          );
+        })}
+      </div>
+      {picked.length > 0 && !solved && (
+        <p className="text-sm text-stone-600">
+          {picked.length} line{picked.length === 1 ? "" : "s"} selected.
+          {state.busy ? " Checking…" : " Keep looking if nothing happened."}
+        </p>
+      )}
+      {state.error && <p role="alert" className="text-red-700">{state.error}</p>}
+      <FeedbackPanel
+        feedback={state.feedback}
+        history={state.history}
+        preview={props.preview}
+        savedNote={state.savedNote}
+      />
+    </section>
+  );
+}
+
 function ResponseView(props: ViewProps & { block: Extract<LearningActivity, { activityType: "response" }> }) {
   const [response, setResponse] = useState("");
   const state = useAttempts(props);
@@ -390,6 +458,7 @@ const renderers: {
   choice: (props) => <ChoiceView {...props} />,
   quiz: (props) => <QuizView {...props} />,
   ordering: (props) => <OrderingView {...props} />,
+  "code-review": (props) => <CodeReviewView {...props} />,
   response: (props) => <ResponseView {...props} />,
   conversation: (props) => <ConversationView {...props} />,
 };

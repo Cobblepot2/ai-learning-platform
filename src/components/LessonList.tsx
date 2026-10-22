@@ -2,15 +2,8 @@
 
 import Link from "next/link";
 import { useLearner } from "@/lib/learner-store";
+import { activityDefinitions } from "@/lib/learning/registry";
 import type { Course } from "@/lib/types";
-
-const FORMAT_LABELS: Record<string, string> = {
-  quiz: "Quiz",
-  ordering: "Mini-game",
-  roleplay: "AI role-play",
-  "prompt-lab": "Prompt lab",
-  "code-review": "Bug hunt",
-};
 
 export function LessonList({ course }: { course: Course }) {
   const { progress } = useLearner();
@@ -20,7 +13,19 @@ export function LessonList({ course }: { course: Course }) {
     <ol className="mt-10 space-y-3">
       {course.lessons.map((lesson, i) => {
         const done = Boolean(progress[`${course.id}/${lesson.id}`]?.completedAt);
-        const formats = [...new Set(lesson.blocks.map((b) => FORMAT_LABELS[b.type]).filter(Boolean))];
+        const formats = [
+          ...new Set(
+            lesson.blocks.flatMap((block) =>
+              block.type === "activity" && block.activityType in activityDefinitions
+                ? [
+                    activityDefinitions[
+                      block.activityType as keyof typeof activityDefinitions
+                    ].label,
+                  ]
+                : [],
+            ),
+          ),
+        ];
         return (
           <li key={lesson.id}>
             <Link

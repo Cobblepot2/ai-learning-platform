@@ -156,6 +156,63 @@ function evaluateOrdering(
   };
 }
 
+function evaluateCodeReview(
+  activity: Extract<LearningActivity, { activityType: "code-review" }>,
+  ctx: EvalContext,
+): Evaluation {
+  let picked: unknown;
+  try {
+    picked = JSON.parse(ctx.response);
+  } catch {
+    throw new HttpError(400, "Select at least one line first.");
+  }
+  const lines = activity.config.code.split("\n").length;
+  if (
+    !Array.isArray(picked) ||
+    picked.length === 0 ||
+    picked.some(
+      (line) =>
+        typeof line !== "number" ||
+        !Number.isInteger(line) ||
+        line < 1 ||
+        line > lines,
+    )
+  ) {
+    throw new HttpError(400, "Select at least one line first.");
+  }
+  const found = picked.some((line) => activity.config.bugLines.includes(line));
+  const score = found
+    ? picked.length === 1
+      ? 1
+      : picked.length === 2
+        ? 0.5
+        : 0.25
+    : 0;
+  return {
+    score,
+    complete: found,
+    feedback: feedback({
+      summary: found
+        ? activity.config.explanation
+        : "That selection does not contain the planted problem yet.",
+      criteria: [
+        {
+          criterion: "Find the line that causes the problem",
+          assessment: found ? "met" : "not-yet",
+          evidence: `Selected line${picked.length === 1 ? "" : "s"} ${picked.join(", ")}.`,
+          suggestion: found
+            ? "Explain what input would expose this bug and what test would catch it."
+            : "Think about boundary values, empty input, secrets and assumptions the code makes.",
+        },
+      ],
+      nextStep: found
+        ? "Write the smallest test that would fail against this code."
+        : "Pick another line and check again.",
+      characterReply: "",
+    }),
+  };
+}
+
 async function evaluateResponse(
   activity: Extract<LearningActivity, { activityType: "response" }>,
   ctx: EvalContext,
@@ -256,6 +313,7 @@ const evaluators: {
   choice: evaluateChoice,
   quiz: evaluateQuiz,
   ordering: evaluateOrdering,
+  "code-review": evaluateCodeReview,
   response: evaluateResponse,
   conversation: evaluateConversation,
 };

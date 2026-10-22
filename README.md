@@ -11,15 +11,15 @@ This is the prototype for the week 8–9 project discussion meeting.
 | Learner preferences (name, language, goal, learning style) | ✅ saved locally, synced to Supabase when signed in |
 | Course-level experience and goal | ✅ optional per-course preference, stored separately |
 | 2 courses, 6 lessons | ✅ `src/content/courses/` |
-| Quiz, ordering mini-game, code-review bug hunt | ✅ |
+| Quiz, ordering, code-review bug hunt | ✅ |
 | AI tutor side panel (knows the lesson, adapts to the profile) | ✅ `/api/tutor` (streaming) |
-| AI role-play: requirements interview with a café owner, plus scored debrief | ✅ `/api/roleplay` |
-| Prompt lab: write a spec for a coding agent, get rubric feedback | ✅ `/api/prompt-lab` |
+| Guided response and conversation activities with rubric feedback | ✅ `/api/activities` |
+| Teacher workspace: course editor, AI builder, students and invitations | ✅ `/teach` (instructor role required) |
+| Personal courses for learners | ✅ `/my-courses` |
 | Progress dashboard | ✅ `/dashboard` |
 | Magic-link sign-in (Supabase) | ✅ only when Supabase env vars are set |
-| Instructor tools (edit courses, AI course generator, import students, engagement) | ⏳ next phase, `activity_events` table already records engagement |
 
-The tutor, role-play, prompt lab, course builder and activity feedback all require a signed-in account. The shared hourly quota is checked in Postgres.
+AI tutor, course builder and AI activity feedback require a signed-in account. The shared hourly quota is checked in Postgres. Deterministic activities in the static catalogue can be practised as a guest; those results are not saved.
 
 ## Tech stack
 
@@ -58,7 +58,7 @@ npm run dev                  # http://localhost:3000
 update public.profiles set role = 'instructor' where id = '<user-uuid>';
 ```
 
-AI features (tutor, role-play, prompt lab, course builder and activity feedback) require that sign-in. Without the service role key, lesson completion and saved attempts are not recorded.
+AI features (tutor, course builder and AI activity feedback) require that sign-in. Without the service role key, lesson completion and saved attempts are not recorded.
 
 ### Deploy to Vercel
 
@@ -68,42 +68,46 @@ Import the GitHub repo in Vercel and add the same environment variables in Proje
 
 ```
 src/
-  app/                 pages and API routes
+  app/
+    (learn)/           learner shell: courses, my-courses, dashboard, auth
+    (teach)/teach/     instructor workspace: dashboard, courses, students, invitations
+    studio/            compatibility redirect into the teaching workspace
     api/tutor          AI tutor (streams text)
-    api/roleplay       role-play persona + structured debrief
-    api/prompt-lab     rubric feedback (structured output)
-  components/          UI; components/blocks = one component per activity type
-  content/courses/     course content as typed data
+    api/activities     activity submission, deterministic + AI evaluation, attempts
+    api/courses        course CRUD with ownership and publication checks
+    api/builder        outline and lesson generation
+    api/enrolments     invitation claiming and enrolment
+  components/          UI; components/learning = activity views and studio panels
+  content/courses/     static catalogue and the shared authoring helpers
   lib/
     ai/gemini.ts       Gemini client, learner description, streaming + JSON helpers
-    learner-store.tsx  profile + progress (localStorage, Supabase sync)
-    types.ts           shared types, including the lesson block schema
+    learning/registry.ts  activity schemas, defaults, editors, renderers, evaluators
+    learning/studio/   course editor state hook and panels
+    types.ts           shared read/catalogue types
 supabase/migrations/   database schema
 ```
 
 ## Adding a lesson
 
-Lessons are lists of blocks (`text`, `quiz`, `ordering`, `code-review`, `roleplay`, `prompt-lab`) defined in `src/lib/types.ts`. Add a lesson object to a course file in `src/content/courses/` and it appears automatically. The same schema is what the planned AI course generator will output.
+Lessons contain ordered activities defined by the registry in
+`src/lib/learning/registry.ts`. Each activity is validated, editable and rendered
+through the same definition. Static courses use the helpers in
+`src/content/courses/authoring.ts` (`reading`, `choice`, `quiz`, `ordering`,
+`codeReview`, `response`, `conversation`); the same envelope is what the course
+builder stores in the database. To add a new activity type, add its schema,
+defaults, editor/renderer and optional evaluator to the registry.
 
-## Learning preferences
+## Teaching workspace and course studio
 
-`/onboarding` collects an optional display name, preferred language (English,
-简体中文 or 繁體中文), a general goal and a learning style. All fields have
-defaults and the page can be skipped. Existing profiles load their saved values;
-the old `zh` language value is read as `zh-Hant`.
+The instructor workspace lives at `/teach` and requires the instructor role.
+A course opens at `/teach/courses/[id]` with Overview, Curriculum, Students,
+Preview and Settings tabs; the AI builder and manual editor share the Curriculum
+tab. Learners can still create and edit personal courses at `/my-courses` using
+the same editor component. `/studio` is a compatibility redirect for old links.
 
-Each course page also offers an optional, collapsed setting for experience and a
-course-specific goal. It is stored in `course_learner_preferences` per learner
-and course, so knowing JavaScript well does not imply prior knowledge of another
-subject. The AI tutor receives the global preferences plus the current course's
-experience and goal; legacy `background`/`experience` columns remain readable but
-no longer drive teaching.
-
-## General-purpose course studio
-
-This branch adds a domain-neutral course editor and human-reviewed AI builder at
-`/studio`, personal courses at `/my-courses`, invitation-based enrolment and
-server-recorded learning evidence. Software engineering remains an example
-teaching domain, not a requirement of the platform model.
+The editor is split into a state hook (`lib/learning/studio/useCourseStudio.ts`)
+and focused panels (`components/learning/studio/`), so curriculum editing, AI
+generation and publishing can evolve independently. Software engineering remains
+an example teaching domain, not a requirement of the platform model.
 
 See [architecture, migration, permissions, limits and demo instructions](docs/GENERAL_LEARNING_PLATFORM.md).

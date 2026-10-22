@@ -48,6 +48,15 @@ const conversationConfig = z.object({
 
 const readingConfig = z.object({ markdown: text });
 
+const codeReviewConfig = z.object({
+  context: text,
+  language: z.string().trim().min(1).max(40),
+  code: z.string().trim().min(1).max(20000),
+  /** 1-based line numbers that contain the planted problem. */
+  bugLines: z.array(z.number().int().min(1).max(500)).min(1).max(5),
+  explanation: text,
+});
+
 function envelope<const T extends string, S extends z.ZodType>(
   activityType: T,
   schema: S,
@@ -146,6 +155,23 @@ export const activityDefinitions = {
       mode: "reflection" as const,
     },
   },
+  "code-review": {
+    renderer: "code-review" as const,
+    editor: "code-review" as const,
+    evaluation: "code-review" as const,
+    label: "Code review",
+    description:
+      "A bug hunt in a short code sample. Learners pick the line they think is wrong; checking is deterministic.",
+    schema: codeReviewConfig,
+    envelope: envelope("code-review", codeReviewConfig),
+    initial: {
+      context: "Explain what the code is meant to do, then ask for the bug.",
+      language: "javascript",
+      code: "function add(a, b) {\n  return a - b;\n}",
+      bugLines: [2],
+      explanation: "Explain why this line is wrong and what a test should check.",
+    },
+  },
   conversation: {
     renderer: "conversation" as const,
     editor: "fields" as const,
@@ -227,6 +253,16 @@ function structuralMessage(activity: LearningActivity): string | null {
       return new Set(activity.config.items).size !== activity.config.items.length
         ? "Ordering items must be unique."
         : null;
+    case "code-review": {
+      const lines = activity.config.code.split("\n").length;
+      const unique = new Set(activity.config.bugLines);
+      if (unique.size !== activity.config.bugLines.length) {
+        return "Bug line numbers must be unique.";
+      }
+      return activity.config.bugLines.some((line) => line > lines)
+        ? "Each bug line must exist in the code sample."
+        : null;
+    }
     case "reading":
     case "response":
     case "conversation":
@@ -283,6 +319,7 @@ export function completionThreshold(activity: LearningActivity): number {
     case "choice":
     case "quiz":
     case "ordering":
+    case "code-review":
     case "response":
       return 1;
     default: {
@@ -312,6 +349,13 @@ export function activityForTutor(activity: LearningActivity): unknown {
       };
     case "ordering":
       return { type: "ordering", prompt: activity.config.prompt };
+    case "code-review":
+      return {
+        type: "code-review",
+        context: activity.config.context,
+        language: activity.config.language,
+        code: activity.config.code,
+      };
     case "reading":
       return { type: "reading", markdown: activity.config.markdown };
     case "response":

@@ -188,6 +188,73 @@ function QuizEditor({
   );
 }
 
+function CodeReviewEditor({
+  activity,
+  onChange,
+}: {
+  activity: Extract<LearningActivity, { activityType: "code-review" }>;
+  onChange: (activity: LearningActivity) => void;
+}) {
+  function update(patch: Partial<typeof activity.config>) {
+    onChange({ ...activity, config: { ...activity.config, ...patch } });
+  }
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-stone-500">
+        {activityDefinitions["code-review"].description}
+      </p>
+      <label className="block text-sm font-medium">
+        Context
+        <textarea
+          className="mt-1 min-h-20 w-full rounded border p-2 font-normal"
+          value={activity.config.context}
+          onChange={(event) => update({ context: event.target.value })}
+        />
+      </label>
+      <label className="block text-sm font-medium">
+        Language
+        <input
+          className="mt-1 w-full rounded border p-2 font-normal"
+          value={activity.config.language}
+          onChange={(event) => update({ language: event.target.value })}
+        />
+      </label>
+      <label className="block text-sm font-medium">
+        Code sample (line numbers start at 1)
+        <textarea
+          className="mt-1 min-h-48 w-full rounded border p-2 font-mono text-xs font-normal"
+          value={activity.config.code}
+          onChange={(event) => update({ code: event.target.value })}
+        />
+      </label>
+      <label className="block text-sm font-medium">
+        Bug line numbers (comma separated)
+        <input
+          className="mt-1 w-full rounded border p-2 font-normal"
+          value={activity.config.bugLines.join(", ")}
+          onChange={(event) =>
+            update({
+              bugLines: event.target.value
+                .split(/[\s,]+/)
+                .filter(Boolean)
+                .map(Number)
+                .filter((line) => Number.isInteger(line) && line > 0),
+            })
+          }
+        />
+      </label>
+      <label className="block text-sm font-medium">
+        Explanation
+        <textarea
+          className="mt-1 min-h-24 w-full rounded border p-2 font-normal"
+          value={activity.config.explanation}
+          onChange={(event) => update({ explanation: event.target.value })}
+        />
+      </label>
+    </div>
+  );
+}
+
 const editors: {
   [K in ActivityType]: (props: {
     activity: Extract<LearningActivity, { activityType: K }>;
@@ -200,6 +267,7 @@ const editors: {
   response: (props) => <FieldEditor {...props} />,
   conversation: (props) => <FieldEditor {...props} />,
   quiz: (props) => <QuizEditor {...props} />,
+  "code-review": (props) => <CodeReviewEditor {...props} />,
 };
 
 /** Editors are registered per activity type. CourseStudio does not branch on the type. */

@@ -63,7 +63,7 @@ export default async function TeachingCoursesPage({
             rosters.
           </p>
         </div>
-        <Link href="/studio" className={buttonPrimary}>
+        <Link href="/teach/courses/new" className={buttonPrimary}>
           New course
         </Link>
       </header>
@@ -120,9 +120,12 @@ export default async function TeachingCoursesPage({
                 {courses.map((course) => (
                   <tr key={course.id} className="hover:bg-stone-50/70">
                     <td className="px-5 py-4">
-                      <p className="font-semibold text-stone-900">
+                      <Link
+                        href={`/teach/courses/${course.id}`}
+                        className="font-semibold text-stone-900 hover:text-indigo-700"
+                      >
                         {course.title}
-                      </p>
+                      </Link>
                       <p className="mt-0.5 text-xs text-stone-500">
                         {course.domain}
                       </p>
@@ -148,7 +151,7 @@ export default async function TeachingCoursesPage({
                     <td className="px-5 py-4">
                       <div className="flex justify-end gap-3 whitespace-nowrap">
                         <Link
-                          href={`/studio?courseId=${course.id}`}
+                          href={`/teach/courses/${course.id}/curriculum`}
                           className="font-medium text-indigo-700 hover:underline"
                         >
                           Edit
@@ -188,7 +191,7 @@ export default async function TeachingCoursesPage({
                 Clear filter
               </Link>
             )}
-            <Link href="/studio" className={buttonPrimary}>
+            <Link href="/teach/courses/new" className={buttonPrimary}>
               New course
             </Link>
           </div>

@@ -65,62 +65,6 @@ export const LEARNING_STYLE_LABELS: Record<LearningStyle, string> = {
 
 // ---- Course content ----
 
-export interface TextBlock {
-  type: "text";
-  id: string;
-  markdown: string;
-}
-
-export interface QuizBlock {
-  type: "quiz";
-  id: string;
-  question: string;
-  options: string[];
-  answer: number;
-  explanation: string;
-}
-
-export interface OrderingBlock {
-  type: "ordering";
-  id: string;
-  prompt: string;
-  /** Items in the correct order; the UI shuffles them. */
-  items: string[];
-  explanation: string;
-}
-
-export interface RoleplayBlock {
-  type: "roleplay";
-  id: string;
-  title: string;
-  scenario: string;
-  /** Who the AI plays, written as instructions for the model. */
-  persona: string;
-  /** Facts the learner is supposed to uncover by asking good questions. */
-  hiddenRequirements: string[];
-  openingLine: string;
-  minTurns: number;
-}
-
-export interface PromptLabBlock {
-  type: "prompt-lab";
-  id: string;
-  task: string;
-  starter: string;
-  rubric: string[];
-}
-
-export interface CodeReviewBlock {
-  type: "code-review";
-  id: string;
-  context: string;
-  language: string;
-  code: string;
-  /** 1-based line numbers that contain the planted problem. */
-  bugLines: number[];
-  explanation: string;
-}
-
 /** Kept in the player when a stored activity fails the registry, so the placeholder can render. */
 export interface UnsupportedActivity {
   type: "activity";
@@ -131,15 +75,10 @@ export interface UnsupportedActivity {
   objectives?: string[];
 }
 
+/** Every lesson block is an Activity envelope from the shared registry. */
 export type LessonBlock =
   | import("./learning/registry").LearningActivity
-  | UnsupportedActivity
-  | TextBlock
-  | QuizBlock
-  | OrderingBlock
-  | RoleplayBlock
-  | PromptLabBlock
-  | CodeReviewBlock;
+  | UnsupportedActivity;
 
 export interface Lesson {
   id: string;

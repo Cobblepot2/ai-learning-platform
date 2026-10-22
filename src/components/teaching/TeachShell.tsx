@@ -21,10 +21,17 @@ const links = [
     ),
   },
   {
-    href: "/studio",
-    label: "Studio",
+    href: "/teach/students",
+    label: "Students",
     icon: (
-      <path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3Zm10-13 3 3" />
+      <path d="M16 19v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1M9.5 7a3 3 0 1 1 0 6 3 3 0 0 1 0-6Zm7.5 0a2.5 2.5 0 1 1 0 5M21 19v-1a4 4 0 0 0-3-3.87" />
+    ),
+  },
+  {
+    href: "/teach/invitations",
+    label: "Invitations",
+    icon: (
+      <path d="M4 6h16v12H4zM4 7l8 6 8-6" />
     ),
   },
 ];
@@ -104,8 +111,7 @@ export function TeachShell({ children }: { children: React.ReactNode }) {
 
         <div className="hidden px-5 py-6 lg:block">
           <p className="text-xs leading-5 text-stone-500">
-            Design courses, publish reviewed content and follow student progress.
-          </p>
+            Design courses, publish reviewed content and follow student progress.          </p>
         </div>
       </aside>
 

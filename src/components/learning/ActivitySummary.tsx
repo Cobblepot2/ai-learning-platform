@@ -47,6 +47,17 @@ function lines(activity: LearningActivity): { label: string; value: string; mark
         },
         { label: "Explanation", value: activity.config.explanation },
       ];
+    case "code-review":
+      return [
+        { label: "Context", value: activity.config.context, markdown: true },
+        { label: "Language", value: activity.config.language },
+        { label: "Code", value: activity.config.code },
+        {
+          label: "Bug lines",
+          value: activity.config.bugLines.join(", "),
+        },
+        { label: "Explanation", value: activity.config.explanation },
+      ];
     case "response":
       return [
         { label: "Title", value: activity.config.title },

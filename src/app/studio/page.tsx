@@ -1,17 +1,14 @@
-import { CourseStudio } from "@/components/learning/CourseStudio";
+import { redirect } from "next/navigation";
 
-export default async function Page({
+/** Compatibility entry point for links saved before the teaching workspace moved. */
+export default async function LegacyStudioPage({
   searchParams,
 }: {
   searchParams: Promise<{ courseId?: string | string[] }>;
 }) {
   const { courseId } = await searchParams;
-  const initialCourseId = Array.isArray(courseId) ? courseId[0] : courseId;
-  return (
-    <CourseStudio
-      key={initialCourseId ?? "new"}
-      teacher
-      initialCourseId={initialCourseId}
-    />
+  const id = Array.isArray(courseId) ? courseId[0] : courseId;
+  redirect(
+    id ? `/teach/courses/${encodeURIComponent(id)}/curriculum` : "/teach/courses/new",
   );
 }

@@ -14,40 +14,44 @@ small course document model rather than a plugin framework:
   course document. Status/access are authoritative database columns, not AI data.
 - Course: title, domain, description, target audience, prerequisites, objectives,
   language, level, estimated duration, ordered lessons.
-- Lesson: stable ID, title, summary, duration, objectives and ordered blocks.
-- New block: `{type:'activity', id, version:1, activityType, config, objectives?}`.
+- Lesson: stable ID, title, summary, duration, objectives and ordered activities.
+- Activity block: `{type:'activity', id, version:1, activityType, config, objectives?}`.
 - `learning_attempts`: immutable server-written responses, activity snapshots,
   course revision, qualitative feedback and optional quiz score. Each improvement
   is another attempt. Lesson completion is derived from recorded submissions.
 - `course_enrolments` and `course_invitations`: course-specific access and roster.
 
-The existing `Course`/`LessonBlock` types are a compatibility boundary. Old IDs,
-static files and six renderers remain unchanged. `legacy.ts` supplies metadata
-for the existing software-engineering examples only. `repository.ts` reads both
-static examples and database courses, subject to RLS. All three existing AI
-routes now use this repository instead of static-only `getLesson()`.
+`Course`/`Lesson` remain the read shape used by catalogue and lesson pages, but
+every `LessonBlock` is now an Activity envelope. The static catalogue and the
+presentation demos were converted to that model, and the six legacy block
+renderers were removed. `legacy.ts` only fills metadata defaults for static
+courses; it no longer translates block shapes. `repository.ts` reads static
+courses and database courses through the same activity validator, subject to
+RLS.
 
 ## Activity registry
 
 `src/lib/learning/registry.ts` owns validators, defaults, descriptions and
-renderer/editor/evaluation metadata. Supported new authoring activities:
+renderer/editor/evaluation metadata. Supported activities:
 
 | Type | Purpose | Evaluation |
 | --- | --- | --- |
 | reading | Markdown teaching material | No score or required response |
-| choice | Optional multiple-choice question | Deterministic answer + explanation |
+| choice | One multiple-choice question | Deterministic answer + explanation |
+| quiz | Several multiple-choice questions | Deterministic score per question |
+| ordering | Put steps in a working order | Deterministic comparison |
+| code-review | Find the planted line in a code sample | Deterministic line check |
 | response | Writing, reflection, scenario or roleplay | Evidence-based rubric feedback and next step, no numeric score |
+| conversation | Multi-turn character conversation | Character reply plus rubric feedback once the minimum turns are met |
 
-`response` is one reusable interaction mechanism. Scenario/roleplay mode also
-returns a character reply. The next submission includes recent server-recorded
-attempts, so students can clarify, revise and improve. This is not a branching
-simulation engine. No AI-supplied React/JavaScript is executed.
+`response` and `conversation` are the only types that call a model. The next
+submission includes recent attempts, so students can clarify, revise and improve.
+This is not a branching simulation engine. No AI-supplied React/JavaScript is
+executed.
 
-The prototype `text`, `quiz`, `ordering`, `code-review`, `roleplay` and `prompt-lab`
-remain available in existing static lessons. None is a mandatory template.
-Code Review and Prompt Lab are compatibility features, not authoring commitments.
-No existing type is deleted in this migration. New courses use the three
-registered activities; the old six do not need six new teacher editors.
+Deterministic activities in static catalogue courses can be practised without
+an account; their feedback is returned but not written to the gradebook.
+Database courses and all AI-backed feedback require a signed-in account.
 
 To add an activity, add its validator/defaults/capabilities and an envelope to
 `activitySchema`, then supply its view/editor and optional server evaluator.
@@ -69,8 +73,8 @@ course) and never changes another course. Learners without any preferences get
 the same balanced beginner defaults.
 
 Legacy `background` and `experience` columns are retained and readable, but the
-tutor no longer uses them to infer subject knowledge. New saves leave legacy
-columns untouched.
+tutor no longer uses them to infer subject knowledge. New saves write the
+learning-style column only when provided and leave legacy columns untouched.
 
 The tutor context combines preferred language, learning style, general goal and
 the current course's experience/goal. Course-level values override the general
@@ -79,24 +83,31 @@ balanced style rather than blocking learning.
 
 ## Teacher workflow
 
-1. Sign in as an administrator-assigned instructor; open `/studio`.
-2. Create a blank course or an optional Software Engineering/English example.
-3. Edit metadata, add/remove/reorder lessons and activities, change activity type,
+1. Sign in as an administrator-assigned instructor; open `/teach`. Non-teachers
+   are redirected to sign-in or shown the instructor-access message.
+2. Create a blank course or an optional Software Engineering/English example from
+   `/teach/courses/new`.
+3. Open a course at `/teach/courses/[id]`. The workspace tabs are Overview,
+   Curriculum, Students, Preview and Settings; the editor lives under Curriculum.
+4. Edit metadata, add/remove/reorder lessons and activities, change activity type,
    and edit its configuration. Text-only lessons can be published.
-4. AI builder: define goals/audience/difficulty/requirements/reference text/length/
+5. AI builder: define goals/audience/difficulty/requirements/reference text/length/
    language; generate and edit an outline; approve it; generate lesson content.
-5. Review the proposed course. Accept into the editor or reject. Generation does
+6. Review the proposed course. Accept into the editor or reject. Generation does
    not save or publish automatically. A failed multi-lesson generation cannot be
    accepted as a complete proposal.
-6. Request a local AI revision. Compare before/after, edit the proposal, accept or
+7. Request a local AI revision. Compare before/after, edit the proposal, accept or
    reject. Acceptance preserves the original activity ID and detects stale edits.
-7. Save, preview with the actual student renderer, then explicitly publish with
-   public or enrolled access. Preview feedback does not create learner records.
-8. Import student email addresses in Students & results. This stores invitations;
-   it does **not send email**. Students sign in with their confirmed email and
-   select Join invited courses in `/my-courses`.
-9. Inspect participation, current-lesson completion, quiz attempts and qualitative
-   evidence. The teacher reads only their own courses' student data.
+8. Save, preview with the actual student renderer, then explicitly publish with
+   public or enrolled access in Settings. Preview feedback does not create learner
+   records.
+9. Import student email addresses in Students. This stores invitations; it does
+   **not send email**. Cross-course invitations are listed at `/teach/invitations`.
+   Students sign in with their confirmed email and select Join invited courses in
+   `/my-courses`.
+10. Inspect participation, current-lesson completion, quiz attempts and qualitative
+    evidence per course or per student; `/teach/students` aggregates across
+    courses. The teacher reads only their own courses' student data.
 
 Students can use `/my-courses` to create and edit personal courses using the same
 builder service. They can order lessons as their learning path. Database and
@@ -195,8 +206,10 @@ communication/product decisions. Their contents are examples, not platform rules
 - AI feedback is formative, not high-stakes grading. It is based on supplied
   content/rubrics and student responses but can still be wrong.
 - Add deployment-specific distributed AI rate limits/budgets before opening this
-  prototype to an untrusted public audience. Tutor, role-play, prompt lab, course
-  builder and activity feedback require a signed-in account and `consume_ai_quota`.
+  prototype to an untrusted public audience. Tutor, course builder, `response`
+  evaluation and `conversation` replies require a signed-in account and
+  `consume_ai_quota`. Deterministic activities in static catalogue courses are the
+  only guest-evaluable path.
 - Public course documents include quiz answer keys (as the old prototype did).
   This platform is not a secure examination system.
 - Large course generation is sequential, one lesson per request. If generation

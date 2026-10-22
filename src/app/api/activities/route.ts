@@ -5,7 +5,7 @@ import {
   recordDb,
   HttpError,
 } from "@/lib/supabase/server";
-import { isPresentationDemo, lessonAsText } from "@/content/courses";
+import { getCourse, lessonAsText } from "@/content/courses";
 import { ownedCourse, readLesson } from "@/lib/learning/repository";
 import { missingKey } from "@/lib/ai/gemini";
 import { evaluateActivity } from "@/lib/learning/evaluate";
@@ -68,12 +68,27 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const { db, user } = await requireAccount();
-    const body = requestSchema.parse(await req.json());
-    const databaseCourse = isDatabaseCourseId(body.courseId);
-    if (!databaseCourse && !isPresentationDemo(body.courseId)) {
+    const raw: unknown = await req.json().catch(() => null);
+    const rawCourseId =
+      raw && typeof raw === "object" && "courseId" in raw
+        ? (raw as { courseId?: unknown }).courseId
+        : undefined;
+    const courseId =
+      typeof rawCourseId === "string" ? rawCourseId : undefined;
+    const databaseCourse = courseId ? isDatabaseCourseId(courseId) : false;
+    const staticCourse = courseId ? !!getCourse(courseId) : false;
+    // Unknown or malformed requests fail closed before the public static path.
+    if (!databaseCourse && !staticCourse) await requireAccount();
+    const body = requestSchema.parse(raw);
+    if (!databaseCourse && !staticCourse) {
       throw new HttpError(404, "Lesson unavailable or you do not have access.");
     }
+
+    // Static catalogue lessons allow guest practice for deterministic
+    // activities. Learner records and AI feedback require an account below.
+    let account: Awaited<ReturnType<typeof requireAccount>> | null = null;
+    if (databaseCourse) account = await requireAccount();
+
     const found = await readLesson(body.courseId, body.lessonId);
     if (!found) {
       throw new HttpError(404, "Lesson unavailable or you do not have access.");
@@ -86,8 +101,8 @@ export async function POST(req: Request) {
       status: string;
       visibility: string;
     } | null = null;
-    if (databaseCourse) {
-      const { data, error: rowError } = await db
+    if (databaseCourse && account) {
+      const { data, error: rowError } = await account.db
         .from("courses")
         .select("revision,owner_id,status,visibility")
         .eq("id", body.courseId)
@@ -95,26 +110,32 @@ export async function POST(req: Request) {
       if (rowError || !data) throw new HttpError(404, "Course unavailable.");
       row = data;
       revision = data.revision;
-      if (body.preview) await ownedCourse(body.courseId, db, user.id);
+      if (body.preview) {
+        await ownedCourse(body.courseId, account.db, account.user.id);
+      }
     }
-    const { data: attempts, error } = databaseCourse
-      ? await db
-          .from("learning_attempts")
-          .select("*")
-          .eq("course_id", body.courseId)
-          .eq("lesson_id", body.lessonId)
-          .eq("user_id", user.id)
-          .order("created_at")
-      : { data: [], error: null };
+    const { data: attempts, error } =
+      databaseCourse && account
+        ? await account.db
+            .from("learning_attempts")
+            .select("*")
+            .eq("course_id", body.courseId)
+            .eq("lesson_id", body.lessonId)
+            .eq("user_id", account.user.id)
+            .order("created_at")
+        : { data: [], error: null };
     if (error) throw error;
-    const history = persisted
-      ? (attempts ?? [])
-      : (body.previewHistory ?? []);
+    const history = persisted ? (attempts ?? []) : (body.previewHistory ?? []);
 
     if (body.action === "complete") {
       if (body.preview || !databaseCourse) {
-        return Response.json({ complete: true, preview: body.preview, saved: false });
+        return Response.json({
+          complete: true,
+          preview: body.preview,
+          saved: false,
+        });
       }
+      if (!account) throw new HttpError(401, "Sign in to continue.");
       const required = requiredActivities(found.lesson.blocks);
       if (
         required.some((block) => {
@@ -134,7 +155,7 @@ export async function POST(req: Request) {
       const { error: saveError } = await recordDb()
         .from("lesson_progress")
         .upsert({
-          user_id: user.id,
+          user_id: account.user.id,
           course_id: body.courseId,
           lesson_id: body.lessonId,
           completed_at: new Date().toISOString(),
@@ -147,19 +168,22 @@ export async function POST(req: Request) {
       return Response.json({ complete: true, saved: true });
     }
 
-    const activity = found.lesson.blocks.find((block) => block.id === body.activityId);
+    const activity = found.lesson.blocks.find(
+      (block) => block.id === body.activityId,
+    );
     const parsed = validateActivity(activity);
     if (!parsed.success) {
       throw new HttpError(400, "Unsupported or invalid activity.");
     }
     const block = parsed.data;
     if (!body.response) throw new HttpError(400, "Enter a response first.");
-    if (block.activityType === "response" || block.activityType === "conversation") {
+    const needsModel =
+      block.activityType === "response" || block.activityType === "conversation";
+    if (needsModel) {
+      if (!account) account = await requireAccount();
       const missing = missingKey();
       if (missing) return missing;
-    }
-    if (block.activityType !== "reading") {
-      await enforceQuota(db, user.id, "feedback");
+      await enforceQuota(account.db, account.user.id, "feedback");
     }
     const prior = history
       .filter((attempt) => {
@@ -180,7 +204,7 @@ export async function POST(req: Request) {
     });
     const attempt = {
       id: crypto.randomUUID(),
-      user_id: user.id,
+      user_id: account?.user.id ?? "",
       course_id: body.courseId,
       lesson_id: body.lessonId,
       activity_id: block.id,
@@ -190,24 +214,26 @@ export async function POST(req: Request) {
       feedback: evaluation.feedback,
       score: evaluation.score,
     };
-    if (persisted && row) {
+    if (persisted && row && account) {
       const writer = recordDb();
       if (
-        row.owner_id !== user.id &&
+        row.owner_id !== account.user.id &&
         row.status === "published" &&
         row.visibility === "public"
       ) {
         const { error: enrolError } = await writer
           .from("course_enrolments")
           .upsert(
-            { course_id: body.courseId, student_id: user.id },
+            { course_id: body.courseId, student_id: account.user.id },
             { ignoreDuplicates: true },
           );
         if (enrolError) {
           throw new HttpError(503, "Could not record course participation.");
         }
       }
-      const { error: saveError } = await writer.from("learning_attempts").insert(attempt);
+      const { error: saveError } = await writer
+        .from("learning_attempts")
+        .insert(attempt);
       if (saveError) {
         throw new HttpError(503, "Feedback could not be saved. Please retry.");
       }
