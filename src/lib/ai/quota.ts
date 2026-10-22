@@ -6,8 +6,8 @@ import { HttpError } from "@/lib/supabase/server";
  *
  * The in-memory counter is per server process only. It still applies when the
  * database function is missing, so a single instance cannot be driven without
- * a limit. After `20261022180000_review_fixes.sql`, `consume_ai_quota` is the
- * shared quota. A request must pass both.
+ * a limit. `consume_ai_quota` is the shared quota. A request must pass both.
+ * The RPC argument is `p_bucket` so it does not clash with `ai_usage.bucket`.
  *
  * Course generation stays available to any signed-in user (students build
  * private courses) and is limited here rather than closed to teachers.
@@ -49,12 +49,14 @@ export async function enforceQuota(
     );
   }
   const { data, error } = await db.rpc("consume_ai_quota", {
-    bucket,
+    p_bucket: bucket,
     max_hits: AI_QUOTA[bucket],
     window_seconds: 3600,
   });
   if (error) {
-    if (/consume_ai_quota|schema cache|function|PGRST202/i.test(error.message)) {
+    // Only a missing function may use the per-process counter. Other failures,
+    // including a broken quota upsert, must not look like a successful check.
+    if (quotaFunctionMissing(error)) {
       console.warn(
         "AI quota RPC unavailable; using the in-memory per-instance limit only.",
       );
@@ -68,4 +70,11 @@ export async function enforceQuota(
       `Hourly limit reached for ${bucket}. Wait and try again.`,
     );
   }
+}
+
+function quotaFunctionMissing(error: { code?: string; message?: string }) {
+  const code = error.code ?? "";
+  if (code === "PGRST202" || code === "42883") return true;
+  const message = error.message ?? "";
+  return /\bPGRST202\b/.test(message) || /\b42883\b/.test(message);
 }

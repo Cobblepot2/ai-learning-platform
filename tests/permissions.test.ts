@@ -30,6 +30,12 @@ test("database enforces role, ownership, enrolment, publication and evidence bou
       "utf8",
     ),
   );
+  const ownerRead = readFileSync(
+    "supabase/migrations/20261022203000_quota_params_and_owner_read.sql",
+    "utf8",
+  );
+  await db.exec(ownerRead);
+  await db.exec(ownerRead);
   await db.exec(
     `insert into auth.users values ('${teacher}','teacher@example.test',now()),('${student}','student@example.test',now()),('${outsider}','outsider@example.test',now()),('${otherTeacher}','other@example.test',now()); update public.profiles set role='instructor' where id in ('${teacher}','${otherTeacher}');`,
   );
@@ -61,19 +67,89 @@ test("database enforces role, ownership, enrolment, publication and evidence bou
     as(student, "delete from public.profiles where id=auth.uid()"),
     /permission/,
   );
-  await as(
+  const renamed = await as(
     student,
-    "update public.profiles set display_name='Learner' where id=auth.uid()",
+    "update public.profiles set display_name='Learner' where id=auth.uid() returning id",
+  );
+  assert.equal(renamed[0].rows.length, 1);
+  const quotaArgs = await db.exec(
+    "select proname, proargnames::text as names from pg_proc where proname = 'consume_ai_quota'",
+  );
+  assert.equal(quotaArgs[0].rows.length, 1);
+  assert.match(String(quotaArgs[0].rows[0].names), /p_bucket/);
+  assert.equal(
+    (
+      await as(
+        student,
+        "select public.consume_ai_quota('tutor', 60, 3600) as ok",
+      )
+    )[0].rows[0].ok,
+    true,
+  );
+  assert.equal(
+    (
+      await as(
+        student,
+        "select public.consume_ai_quota('tutor', 60, 3600) as ok",
+      )
+    )[0].rows[0].ok,
+    true,
+  );
+  assert.equal(
+    (
+      await db.exec(
+        `select hits from public.ai_usage where user_id = '${student}' and bucket = 'tutor'`,
+      )
+    )[0].rows[0].hits,
+    2,
+  );
+  assert.equal(
+    (
+      await as(
+        student,
+        "select public.consume_ai_quota('roleplay', 1, 3600) as ok",
+      )
+    )[0].rows[0].ok,
+    true,
+  );
+  assert.equal(
+    (
+      await as(
+        student,
+        "select public.consume_ai_quota('roleplay', 1, 3600) as ok",
+      )
+    )[0].rows[0].ok,
+    false,
+  );
+  assert.equal(
+    (
+      await db.exec(
+        `select hits from public.ai_usage where user_id = '${student}' and bucket = 'roleplay'`,
+      )
+    )[0].rows[0].hits,
+    2,
   );
   const doc = (id: string) => `'{"id":"${id}","lessons":[]}'::jsonb`;
-  await as(
+  const created = await as(
     teacher,
-    `insert into public.courses(id,owner_id,document) values('${course}',auth.uid(),${doc(course)})`,
+    `insert into public.courses(id,owner_id,document) values('${course}',auth.uid(),${doc(course)}) returning id`,
   );
-  await as(
+  assert.equal(created[0].rows[0].id, course);
+  const personalCreated = await as(
     student,
-    `insert into public.courses(id,owner_id,document) values('${personal}',auth.uid(),${doc(personal)})`,
+    `insert into public.courses(id,owner_id,document) values('${personal}',auth.uid(),${doc(personal)}) returning id`,
   );
+  assert.equal(personalCreated[0].rows[0].id, personal);
+  const touched = await as(
+    teacher,
+    `update public.courses set updated_at = now() where id = '${course}' returning id`,
+  );
+  assert.equal(touched[0].rows[0].id, course);
+  const invited = await as(
+    teacher,
+    `insert into public.course_invitations(course_id,email) values('${course}','extra@example.test') returning email`,
+  );
+  assert.equal(invited[0].rows[0].email, "extra@example.test");
   await assert.rejects(
     as(
       student,
@@ -161,10 +237,11 @@ test("database enforces role, ownership, enrolment, publication and evidence bou
     )[0].rows.length,
     1,
   );
-  await as(
+  const legacyProgress = await as(
     student,
-    `insert into public.lesson_progress(user_id,course_id,lesson_id) values(auth.uid(),'legacy-demo','l')`,
+    `insert into public.lesson_progress(user_id,course_id,lesson_id) values(auth.uid(),'legacy-demo','l') returning course_id`,
   );
+  assert.equal(legacyProgress[0].rows[0].course_id, "legacy-demo");
   await db.exec(
     `insert into public.learning_attempts(id,user_id,course_id,lesson_id,activity_id,course_revision,activity_snapshot,response) values(gen_random_uuid(),'${student}','${course}','l','a',1,'{}','real response')`,
   );
