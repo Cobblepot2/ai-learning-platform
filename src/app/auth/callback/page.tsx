@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getSupabase } from "@/lib/supabase/client";
@@ -10,21 +11,39 @@ export default function AuthCallbackPage() {
 
   useEffect(() => {
     const supabase = getSupabase();
-    const code = new URLSearchParams(window.location.search).get("code");
-    if (!supabase || !code) {
+    const params = new URLSearchParams(window.location.search);
+    if (!supabase) {
       router.replace("/");
       return;
     }
-    supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
-      if (error) setError(error.message);
+    // The provider reports failures (e.g. the user cancelled) in the query string.
+    const providerError = params.get("error_description") ?? params.get("error");
+    if (providerError) {
+      setError(providerError);
+      return;
+    }
+    // The browser client exchanges the ?code= itself while it initialises, and
+    // getSession() waits for that. Exchanging the code again here would fail
+    // because the PKCE verifier has already been used.
+    supabase.auth.getSession().then(({ data }) => {
       // Full reload so the learner store picks up the new session and remote progress.
-      else window.location.replace("/dashboard");
+      if (data.session) window.location.replace("/dashboard");
+      else setError("This sign-in link has expired or was opened in a different browser. Please sign in again.");
     });
   }, [router]);
 
   return (
     <div className="mx-auto max-w-md px-4 py-16 text-center text-stone-600">
-      {error ? <p className="text-rose-600">Sign-in failed: {error}</p> : <p>Signing you in…</p>}
+      {error ? (
+        <>
+          <p className="text-rose-600">Sign-in failed: {error}</p>
+          <Link href="/login" className="mt-4 inline-block font-medium text-indigo-600 underline">
+            Back to sign in
+          </Link>
+        </>
+      ) : (
+        <p>Signing you in…</p>
+      )}
     </div>
   );
 }
