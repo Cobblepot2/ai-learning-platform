@@ -160,7 +160,7 @@ test("student preview supports feedback, revision and separate attempts without 
     .fill("I will send the final figures Thursday at 10 AM.");
   await page
     .getByRole("button", {
-      name: "Submit improvement / next turn",
+      name: "Submit improvement",
       exact: true,
     })
     .click();

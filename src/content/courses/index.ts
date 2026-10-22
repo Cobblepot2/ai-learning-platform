@@ -4,7 +4,10 @@ import { aiCodingAgents } from "./ai-coding-agents";
 import { presentationDemos } from "./presentation-demos";
 import { seEssentials } from "./se-essentials";
 
-export const courses: Course[] = [seEssentials, aiCodingAgents, ...presentationDemos];
+/** Public catalogue. Presentation demos stay reachable by direct link only. */
+export const catalogCourses: Course[] = [seEssentials, aiCodingAgents];
+
+export const courses: Course[] = [...catalogCourses, ...presentationDemos];
 
 export function isPresentationDemo(id: string): boolean {
   return presentationDemos.some((course) => course.id === id);

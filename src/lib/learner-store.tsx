@@ -15,6 +15,8 @@ import {
 } from "@/lib/learner-progress";
 import type { BlockResult, LearnerProfile } from "@/lib/types";
 
+export type { LessonProgress, ProgressMap } from "@/lib/learner-progress";
+
 interface LearnerState {
   ready: boolean;
   user: User | null;
