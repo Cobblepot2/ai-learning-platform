@@ -1,5 +1,6 @@
+import { apiError } from "@/lib/supabase/server";
 import { z } from "zod";
-import { getLesson } from "@/content/courses";
+import { readLesson } from "@/lib/learning/repository";
 import { badRequest, describeLearner, generateJson, missingKey, streamText, toContents } from "@/lib/ai/gemini";
 import type { RoleplayBlock } from "@/lib/types";
 
@@ -13,17 +14,18 @@ const Debrief = z.object({
 
 export type DebriefResult = z.infer<typeof Debrief> & { total: number; requirements: string[] };
 
-function findBlock(courseId: string, lessonId: string, blockId: string): RoleplayBlock | null {
-  const block = getLesson(courseId, lessonId)?.lesson.blocks.find((b) => b.id === blockId);
+async function findBlock(courseId: string, lessonId: string, blockId: string): Promise<RoleplayBlock | null> {
+  const block = (await readLesson(courseId, lessonId))?.lesson.blocks.find((b) => b.id === blockId);
   return block?.type === "roleplay" ? block : null;
 }
 
 export async function POST(req: Request) {
+  try {
   const noKey = missingKey();
   if (noKey) return noKey;
 
   const { courseId, lessonId, blockId, profile, messages, mode } = await req.json();
-  const block = findBlock(courseId, lessonId, blockId);
+  const block = await findBlock(courseId, lessonId, blockId);
   if (!block) return badRequest("Unknown role-play");
 
   // The opening line comes from the course content, so the conversation starts with the persona.
@@ -47,7 +49,7 @@ export async function POST(req: Request) {
 
     const debrief = await generateJson({
       schema: Debrief,
-      system: `You coach students on requirements-gathering interviews. Be honest, specific and encouraging. Write in the learner's preferred language.
+      system: `You coach students on the supplied roleplay scenario and its learning goals. Be honest, specific and encouraging. Write in the learner's preferred language.
 
 <learner>
 ${describeLearner(profile)}
@@ -74,7 +76,7 @@ ${transcript}
     return Response.json(result);
   }
 
-  const system = `You are playing a character in a requirements-interview exercise for students learning software engineering.
+  const system = `You are playing the configured character in a learning scenario. Follow the subject and context provided.
 
 <character>
 ${block.persona}
@@ -92,4 +94,5 @@ Rules:
 - The student's preferred language is: ${profile?.language === "zh" ? "Cantonese-flavoured Traditional Chinese" : "English"}. Reply in that language.`;
 
   return streamText({ system, contents: history, maxTokens: 1000 });
+  } catch (error) { return apiError(error); }
 }

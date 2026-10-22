@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "DevPath · Learn to build software in the age of AI",
-  description: "Interactive, AI-personalised mini-courses on software engineering and working with AI coding agents.",
+  title: "DevPath · Interactive learning in any subject",
+  description: "Teacher-designed, AI-supported interactive courses across subjects.",
 };
 
 export default function RootLayout({

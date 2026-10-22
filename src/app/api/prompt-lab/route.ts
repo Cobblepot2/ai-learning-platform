@@ -1,5 +1,6 @@
+import { apiError } from "@/lib/supabase/server";
 import { z } from "zod";
-import { getLesson } from "@/content/courses";
+import { readLesson } from "@/lib/learning/repository";
 import { MAX_CHARS, badRequest, describeLearner, generateJson, missingKey } from "@/lib/ai/gemini";
 
 const Feedback = z.object({
@@ -13,11 +14,12 @@ const Feedback = z.object({
 export type PromptFeedback = z.infer<typeof Feedback> & { rubric: string[] };
 
 export async function POST(req: Request) {
+  try {
   const noKey = missingKey();
   if (noKey) return noKey;
 
   const { courseId, lessonId, blockId, profile, draft } = await req.json();
-  const block = getLesson(courseId, lessonId)?.lesson.blocks.find((b) => b.id === blockId);
+  const block = (await readLesson(courseId, lessonId))?.lesson.blocks.find((b) => b.id === blockId);
   if (block?.type !== "prompt-lab") return badRequest("Unknown exercise");
   if (typeof draft !== "string" || !draft.trim() || draft.length > MAX_CHARS) return badRequest("Invalid draft");
 
@@ -41,4 +43,5 @@ ${draft}
   if (!feedback) return Response.json({ error: "Could not review this draft." }, { status: 502 });
   const result: PromptFeedback = { ...feedback, rubric: block.rubric };
   return Response.json(result);
+  } catch (error) { return apiError(error); }
 }

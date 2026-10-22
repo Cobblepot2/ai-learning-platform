@@ -66,3 +66,12 @@ supabase/migrations/   database schema
 ## Adding a lesson
 
 Lessons are lists of blocks (`text`, `quiz`, `ordering`, `code-review`, `roleplay`, `prompt-lab`) defined in `src/lib/types.ts`. Add a lesson object to a course file in `src/content/courses/` and it appears automatically. The same schema is what the planned AI course generator will output.
+
+## General-purpose course studio
+
+This branch adds a domain-neutral course editor and human-reviewed AI builder at
+`/studio`, personal courses at `/my-courses`, invitation-based enrolment and
+server-recorded learning evidence. Software engineering remains an example
+teaching domain, not a requirement of the platform model.
+
+See [architecture, migration, permissions, limits and demo instructions](docs/GENERAL_LEARNING_PLATFORM.md).

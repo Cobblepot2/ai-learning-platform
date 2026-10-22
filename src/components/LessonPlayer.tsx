@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ActivityView } from "@/components/learning/ActivityView";
 import { useState } from "react";
 import { Markdown } from "@/components/Markdown";
 import { TutorPanel } from "@/components/TutorPanel";
@@ -13,15 +14,19 @@ import { buttonPrimary } from "@/components/blocks/BlockCard";
 import { useLearner } from "@/lib/learner-store";
 import type { BlockResult, Course, Lesson, LessonBlock } from "@/lib/types";
 
-export function LessonPlayer({ course, lesson }: { course: Course; lesson: Lesson }) {
+export function LessonPlayer({ course, lesson, preview = false }: { course: Course; lesson: Lesson; preview?: boolean }) {
+  const [previewResults, setPreviewResults] = useState<Record<string, BlockResult>>({});
+  const [completionError, setCompletionError] = useState("");
+  const [completing, setCompleting] = useState(false);
   const { progress, recordBlock, completeLesson } = useLearner();
   const [tutorOpen, setTutorOpen] = useState(false);
   const lessonProgress = progress[`${course.id}/${lesson.id}`];
-  const results = lessonProgress?.blocks ?? {};
+  const results = preview ? previewResults : lessonProgress?.blocks ?? {};
 
-  const activities = lesson.blocks.filter((b) => b.type !== "text");
+  const activities = lesson.blocks.filter((b) => b.type !== "text" && !(b.type === "activity" && b.activityType === "reading"));
   const doneCount = activities.filter((b) => results[b.id]?.done).length;
   const allDone = doneCount === activities.length;
+  const lessonIsComplete = !preview && !!lessonProgress?.completedAt && allDone;
 
   const index = course.lessons.findIndex((l) => l.id === lesson.id);
   const next = course.lessons[index + 1];
@@ -29,9 +34,11 @@ export function LessonPlayer({ course, lesson }: { course: Course; lesson: Lesso
   function render(block: LessonBlock) {
     const common = {
       result: results[block.id],
-      onResult: (r: BlockResult) => recordBlock(course.id, lesson.id, block.id, r),
+      onResult: (r: BlockResult) => preview ? setPreviewResults(prev => ({ ...prev, [block.id]: r })) : recordBlock(course.id, lesson.id, block.id, r),
     };
     switch (block.type) {
+      case "activity":
+        return <ActivityView block={block} courseId={course.id} lessonId={lesson.id} preview={preview} {...common} />;
       case "text":
         return (
           <article className="px-1">
@@ -80,20 +87,31 @@ export function LessonPlayer({ course, lesson }: { course: Course; lesson: Lesso
           ))}
         </div>
 
+        {completionError && <p role="alert" className="text-red-700">{completionError}</p>}
         <div className="mt-10 flex flex-wrap items-center gap-4 rounded-2xl border border-stone-200 bg-white p-5">
-          {lessonProgress?.completedAt ? (
+          {lessonIsComplete ? (
             <p className="flex-1 font-medium text-emerald-700">Lesson complete ✓</p>
           ) : (
             <p className="flex-1 text-sm text-stone-600">
               {allDone ? "Nice work, every activity is done." : "Finish the activities above to complete this lesson."}
             </p>
           )}
-          {!lessonProgress?.completedAt && (
-            <button type="button" className={buttonPrimary} disabled={!allDone} onClick={() => completeLesson(course.id, lesson.id)}>
+          {!lessonIsComplete && (
+            <button type="button" className={buttonPrimary} disabled={!allDone || completing || preview} onClick={async () => {
+              if (preview) return;
+              setCompleting(true); setCompletionError("");
+              try {
+                if (/^[0-9a-f-]{36}$/i.test(course.id)) {
+                  const res = await fetch("/api/activities", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ courseId: course.id, lessonId: lesson.id, action: "complete" }) });
+                  const data = await res.json(); if (!res.ok) throw new Error(data.error);
+                }
+                completeLesson(course.id, lesson.id);
+              } catch(e) { setCompletionError((e as Error).message); } finally { setCompleting(false); }
+            }}>
               Mark lesson complete
             </button>
           )}
-          {lessonProgress?.completedAt &&
+          {lessonIsComplete &&
             (next ? (
               <Link href={`/courses/${course.id}/${next.id}`} className={buttonPrimary}>
                 Next: {next.title} →

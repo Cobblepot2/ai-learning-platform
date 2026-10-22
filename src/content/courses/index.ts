@@ -19,6 +19,8 @@ export function lessonAsText(lesson: Lesson): string {
   return lesson.blocks
     .map((b) => {
       switch (b.type) {
+        case "activity":
+          return JSON.stringify({ type: b.activityType, objectives: b.objectives, config: b.activityType === "choice" ? { question: b.config.question, options: b.config.options } : b.config });
         case "text":
           return b.markdown;
         case "quiz":

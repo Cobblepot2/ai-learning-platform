@@ -1,24 +1,25 @@
 import Link from "next/link";
 import { CourseCard } from "@/components/CourseCard";
-import { courses } from "@/content/courses";
+import { listCourses } from "@/lib/learning/repository";
 
 const FORMATS = [
-  { icon: "💬", title: "AI role-play", text: "Interview an AI client and get a debrief on what you uncovered." },
-  { icon: "🐞", title: "Bug hunts", text: "Spot the problem in real-looking code, even if you've never coded." },
-  { icon: "✍️", title: "Prompt lab", text: "Write specs for AI coding agents and get rubric-based feedback." },
+  { icon: "💬", title: "AI role-play", text: "Practise a conversation and reflect on evidence from your responses." },
+  { icon: "🌍", title: "Any subject", text: "Learn languages, business, science or software engineering." },
+  { icon: "✍️", title: "Thoughtful practice", text: "Respond to open tasks and revise with rubric-based feedback." },
   { icon: "🧑‍🏫", title: "Personal tutor", text: "An AI tutor that knows the lesson and explains it your way." },
 ];
 
-export default function Home() {
+export default async function Home() {
+  const courses = await listCourses();
   return (
     <div className="mx-auto max-w-6xl px-4 pb-20">
       <section className="py-14 sm:py-20">
-        <p className="text-sm font-semibold text-indigo-600">Software engineering for the age of AI</p>
+        <p className="text-sm font-semibold text-indigo-600">Interactive learning in any subject</p>
         <h1 className="mt-3 max-w-3xl text-4xl font-bold tracking-tight text-stone-900 sm:text-5xl">
-          Learn how software gets built, by doing it.
+          Learn by exploring, practising and improving.
         </h1>
         <p className="mt-5 max-w-2xl text-lg text-stone-600">
-          Short, interactive mini-courses that adapt to your background, whether you&apos;ve never written code or you&apos;re a CS graduate getting ready for a job where AI writes much of the code.
+          Explore short courses across subjects. Work through scenarios, explain your thinking and use AI feedback to improve. Teachers design and review each learning experience.
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
           <Link href="/onboarding" className="rounded-lg bg-indigo-600 px-5 py-3 font-medium text-white hover:bg-indigo-700">

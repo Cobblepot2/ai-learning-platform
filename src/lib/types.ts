@@ -1,4 +1,4 @@
-export type Background = "non_cs" | "cs_student" | "cs_graduate" | "career_switcher";
+export type Background = "general" | "non_cs" | "cs_student" | "cs_graduate" | "career_switcher";
 export type Experience = "none" | "some" | "comfortable";
 export type Goal = "understand" | "build" | "career";
 export type Language = "en" | "zh";
@@ -12,6 +12,7 @@ export interface LearnerProfile {
 }
 
 export const BACKGROUND_LABELS: Record<Background, string> = {
+  general: "General learner",
   non_cs: "Non-CS major",
   cs_student: "CS student",
   cs_graduate: "CS graduate",
@@ -19,15 +20,15 @@ export const BACKGROUND_LABELS: Record<Background, string> = {
 };
 
 export const EXPERIENCE_LABELS: Record<Experience, string> = {
-  none: "Never written code",
-  some: "Written a little code",
-  comfortable: "Comfortable coding",
+  none: "New to the subject",
+  some: "Some experience in the subject",
+  comfortable: "Comfortable with the subject",
 };
 
 export const GOAL_LABELS: Record<Goal, string> = {
-  understand: "Understand how software gets built",
-  build: "Build my own product with AI",
-  career: "Prepare for a software career",
+  understand: "Understand a subject",
+  build: "Apply what I learn",
+  career: "Develop professional skills",
 };
 
 // ---- Course content ----
@@ -89,6 +90,7 @@ export interface CodeReviewBlock {
 }
 
 export type LessonBlock =
+  | import("./learning/registry").LearningActivity
   | TextBlock
   | QuizBlock
   | OrderingBlock
@@ -102,15 +104,23 @@ export interface Lesson {
   summary: string;
   minutes: number;
   blocks: LessonBlock[];
+  objectives?: string[];
 }
 
 export interface Course {
+  domain?: string;
+  targetAudience?: string;
+  prerequisites?: string[];
+  objectives?: string[];
+  language?: string;
+  estimatedMinutes?: number;
   id: string;
   title: string;
   tagline: string;
   description: string;
   level: string;
-  audience: Background[];
+  /** Optional legacy recommendation tags; arbitrary domains may supply their own. */
+  audience: string[];
   emoji: string;
   lessons: Lesson[];
 }

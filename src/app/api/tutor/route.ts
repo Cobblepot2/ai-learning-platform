@@ -1,17 +1,20 @@
-import { getLesson, lessonAsText } from "@/content/courses";
+import { apiError } from "@/lib/supabase/server";
+import { lessonAsText } from "@/content/courses";
+import { readLesson } from "@/lib/learning/repository";
 import { badRequest, describeLearner, missingKey, streamText, toContents } from "@/lib/ai/gemini";
 
 export async function POST(req: Request) {
+  try {
   const noKey = missingKey();
   if (noKey) return noKey;
 
   const { courseId, lessonId, profile, messages } = await req.json();
-  const found = getLesson(courseId, lessonId);
+  const found = (await readLesson(courseId, lessonId));
   if (!found) return badRequest("Unknown lesson");
   const history = toContents(messages);
   if (!history) return badRequest("Invalid messages");
 
-  const system = `You are a friendly, encouraging tutor on a learning platform that teaches software development and software engineering to people from very different backgrounds.
+  const system = `You are a friendly, encouraging tutor on a general-purpose learning platform for people from varied backgrounds. Teach the subject and objectives of the current lesson.
 
 <learner>
 ${describeLearner(profile)}
@@ -23,11 +26,12 @@ ${lessonAsText(found.lesson)}
 
 How to teach this learner:
 - Reply in the learner's preferred language. Keep technical terms in English, with a short explanation the first time.
-- Match their background. For non-CS learners, explain with everyday analogies and avoid jargon. For CS students and graduates, be precise and connect ideas to industry practice and careers in the age of AI.
+- Match their background. Use their experience in this subject; do not infer subject knowledge from programming experience.
 - Tie answers to their goal where it helps.
 - Keep replies short (usually under 150 words) and end with a question or a small next step when that helps learning.
-- The lesson contains quizzes and code-review exercises. Don't give away their answers directly; give a hint and help the learner reason it out. If they have clearly tried already, you may explain.
+- The lesson may contain assessments. Don't give away their answers directly; give a hint and help the learner reason it out. If they have clearly tried already, you may explain.
 - If they ask about something outside the lesson, answer briefly and link it back to the course topic.`;
 
   return streamText({ system, contents: history });
+  } catch (error) { return apiError(error); }
 }
