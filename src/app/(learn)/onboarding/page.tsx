@@ -1,113 +1,155 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useEffect, useState } from "react";
+import { PreferenceChoice } from "@/components/learning/PreferenceChoice";
 import { useLearner } from "@/lib/learner-store";
 import {
-  BACKGROUND_LABELS,
-  EXPERIENCE_LABELS,
   GOAL_LABELS,
-  type Background,
-  type Experience,
+  LANGUAGE_LABELS,
+  LEARNING_STYLE_LABELS,
   type Goal,
   type Language,
   type LearnerProfile,
+  type LearningStyle,
 } from "@/lib/types";
 
-function Choice<T extends string>({
-  label,
-  options,
-  value,
-  onChange,
-}: {
-  label: string;
-  options: Record<T, string>;
-  value: T | null;
-  onChange: (v: T) => void;
-}) {
-  return (
-    <fieldset>
-      <legend className="mb-2 font-medium text-stone-900">{label}</legend>
-      <div className="grid gap-2 sm:grid-cols-2">
-        {(Object.keys(options) as T[]).map((key) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => onChange(key)}
-            className={`rounded-xl border px-4 py-3 text-left text-sm transition ${
-              value === key ? "border-indigo-500 bg-indigo-50 text-indigo-900" : "border-stone-200 bg-white hover:border-stone-300"
-            }`}
-          >
-            {options[key]}
-          </button>
-        ))}
-      </div>
-    </fieldset>
-  );
-}
-
-const LANGUAGE_LABELS: Record<Language, string> = { en: "English", zh: "中文 (Traditional Chinese)" };
-
 export default function OnboardingPage() {
-  const router = useRouter();
   const { profile, saveProfile, ready } = useLearner();
   const [displayName, setDisplayName] = useState("");
-  const [background, setBackground] = useState<Background | null>(null);
-  const [experience, setExperience] = useState<Experience | null>(null);
-  const [goal, setGoal] = useState<Goal | null>(null);
   const [language, setLanguage] = useState<Language>("en");
+  const [goal, setGoal] = useState<Goal>("understand");
+  const [learningStyle, setLearningStyle] =
+    useState<LearningStyle>("balanced");
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!profile) return;
     setDisplayName(profile.displayName);
-    setBackground(profile.background);
-    setExperience(profile.experience);
-    setGoal(profile.goal);
     setLanguage(profile.language);
+    setGoal(profile.goal);
+    setLearningStyle(profile.learningStyle);
   }, [profile]);
 
-  const complete = background && experience && goal;
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!complete) return;
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    if (saving) return;
     setSaving(true);
-    const next: LearnerProfile = { displayName: displayName.trim(), background, experience, goal, language };
-    await saveProfile(next);
-    router.push("/#courses");
+    setSaved(false);
+    setError(null);
+    const next: LearnerProfile = {
+      displayName: displayName.trim(),
+      language,
+      goal,
+      learningStyle,
+      // Keep any legacy values the account already had; they are no longer
+      // required, but a preference edit should not erase old profile data.
+      background: profile?.background ?? null,
+      experience: profile?.experience ?? null,
+    };
+    try {
+      await saveProfile(next);
+      setSaved(true);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setSaving(false);
+    }
   }
 
   if (!ready) return null;
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-12">
-      <h1 className="text-3xl font-bold text-stone-900">Tell us about you</h1>
-      <p className="mt-2 text-stone-600">
-        The AI tutor and feedback adapt to your background and goals. You can change this any time.
-      </p>
-      <form onSubmit={submit} className="mt-8 space-y-8">
+    <div className="mx-auto max-w-2xl px-4 py-10 sm:py-14">
+      <header>
+        <p className="text-sm font-semibold text-indigo-600">DevPath</p>
+        <h1 className="mt-2 text-3xl font-bold tracking-tight text-stone-900">
+          Make learning yours.
+        </h1>
+        <p className="mt-2 text-stone-600">
+          Set your learning preferences. You can always change them later.
+        </p>
+      </header>
+
+      <form onSubmit={submit} className="mt-8 space-y-7" noValidate>
         <label className="block">
-          <span className="mb-2 block font-medium text-stone-900">What should we call you?</span>
+          <span className="font-medium text-stone-900">
+            Display name <span className="font-normal text-stone-500">(optional)</span>
+          </span>
           <input
             value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
+            onChange={(event) => setDisplayName(event.target.value)}
             maxLength={40}
-            placeholder="Your first name (optional)"
-            className="w-full rounded-xl border border-stone-300 px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+            autoComplete="name"
+            placeholder="How should we address you?"
+            className="mt-2 w-full rounded-xl border border-stone-300 px-4 py-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
           />
         </label>
-        <Choice label="Your background" options={BACKGROUND_LABELS} value={background} onChange={setBackground} />
-        <Choice label="Experience in the subject you want to study" options={EXPERIENCE_LABELS} value={experience} onChange={setExperience} />
-        <Choice label="What do you want to get out of this?" options={GOAL_LABELS} value={goal} onChange={setGoal} />
-        <Choice label="Preferred language for AI explanations" options={LANGUAGE_LABELS} value={language} onChange={setLanguage} />
-        <button
-          type="submit"
-          disabled={!complete || saving}
-          className="w-full rounded-lg bg-indigo-600 px-5 py-3 font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-        >
-          {saving ? "Saving…" : "Save and choose a course"}
-        </button>
+
+        <PreferenceChoice
+          label="Preferred language"
+          hint="The AI tutor will explain and reply in this language."
+          name="language"
+          options={LANGUAGE_LABELS}
+          value={language}
+          onChange={setLanguage}
+          columns={3}
+        />
+
+        <PreferenceChoice
+          label="Main learning goal"
+          name="goal"
+          options={GOAL_LABELS}
+          value={goal}
+          onChange={setGoal}
+        />
+
+        <PreferenceChoice
+          label="Learning style"
+          hint="Optional. This shapes how the tutor explains and guides you."
+          name="learning-style"
+          options={LEARNING_STYLE_LABELS}
+          value={learningStyle}
+          onChange={setLearningStyle}
+        />
+
+        {error && (
+          <p
+            role="alert"
+            className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800"
+          >
+            {error}
+          </p>
+        )}
+        {saved && (
+          <div
+            role="status"
+            className="flex flex-wrap items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"
+          >
+            <span className="font-medium">Preferences saved.</span>
+            <Link href="/#courses" className="underline">
+              Browse courses →
+            </Link>
+          </div>
+        )}
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <button
+            type="submit"
+            disabled={saving}
+            className="rounded-lg bg-indigo-600 px-5 py-3 font-medium text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {saving ? "Saving…" : "Save preferences"}
+          </button>
+          <Link
+            href="/#courses"
+            className="rounded-lg px-3 py-3 text-center text-sm font-medium text-stone-600 transition hover:text-indigo-700"
+          >
+            Skip for now
+          </Link>
+        </div>
       </form>
     </div>
   );

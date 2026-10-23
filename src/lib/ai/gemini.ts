@@ -1,6 +1,14 @@
 import { GoogleGenAI, type Content } from "@google/genai";
 import { z } from "zod";
-import { BACKGROUND_LABELS, EXPERIENCE_LABELS, GOAL_LABELS, type LearnerProfile } from "@/lib/types";
+import {
+  GOAL_LABELS,
+  LANGUAGE_NAMES,
+  LEARNING_STYLE_LABELS,
+  type CoursePreference,
+  type Goal,
+  type LearnerProfile,
+  type LearningStyle,
+} from "@/lib/types";
 
 export const MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
 
@@ -38,16 +46,59 @@ export function toContents(turns: unknown, { requireUserLast = true } = {}): Con
   return out;
 }
 
-export function describeLearner(profile: LearnerProfile | null | undefined): string {
-  if (!profile) return "No learner profile yet. Assume a curious beginner in the current subject.";
-  const lang = profile.language === "zh" ? "Traditional Chinese (Hong Kong usage)" : "English";
-  return [
-    `Name: ${profile.displayName || "(not given)"}`,
-    `Background: ${BACKGROUND_LABELS[profile.background] ?? profile.background}`,
-    `Self-reported subject experience: ${EXPERIENCE_LABELS[profile.experience] ?? profile.experience}`,
-    `Goal: ${GOAL_LABELS[profile.goal] ?? profile.goal}`,
-    `Preferred language: ${lang}`,
-  ].join("\n");
+const GOAL_GUIDANCE: Record<Goal, string> = {
+  understand:
+    "Prioritise concepts, analogies and why something works before asking for practice.",
+  build:
+    "Connect explanations to doing: examples, worked steps and short practice suggestions.",
+  career:
+    "Use professional context, realistic standards and examples from the workplace.",
+};
+
+const STYLE_GUIDANCE: Record<LearningStyle, string> = {
+  balanced: "Mix explanation with a small check for understanding.",
+  step_by_step:
+    "Break the answer into a short sequence of steps and check understanding after each one.",
+  interactive:
+    "Invite the learner to try, predict or answer before giving the full explanation.",
+};
+
+export function describeLearner(
+  profile: LearnerProfile | null | undefined,
+  coursePreference?: CoursePreference | null,
+): string {
+  const lines: string[] = [];
+  if (!profile) {
+    lines.push(
+      "No global learner preferences saved. Assume a curious beginner in the current subject.",
+      "Use clear English unless the lesson itself is in another language.",
+      "Use a balanced style: explain briefly, then check understanding.",
+    );
+  } else {
+    const goal = coursePreference?.goal ?? profile.goal;
+    lines.push(
+      `Name: ${profile.displayName || "(not given)"}`,
+      `Preferred language: ${LANGUAGE_NAMES[profile.language]}`,
+      `Main goal: ${GOAL_LABELS[profile.goal]}. ${GOAL_GUIDANCE[profile.goal]}`,
+      `Learning style: ${LEARNING_STYLE_LABELS[profile.learningStyle]}. ${STYLE_GUIDANCE[profile.learningStyle]}`,
+    );
+    if (coursePreference) {
+      lines.push(
+        `Goal for this course: ${GOAL_LABELS[goal]}. ${GOAL_GUIDANCE[goal]}`,
+      );
+    }
+  }
+  if (coursePreference) {
+    lines.push(
+      `Experience in this course's subject: ${coursePreference.experience === "none" ? "new to it" : coursePreference.experience === "some" ? "some experience" : "confident"}.`,
+      "The course-level experience and goal override the general preference where they differ.",
+    );
+  } else {
+    lines.push(
+      "No course-level experience has been set. Do not infer subject knowledge from a computer-science or other academic background.",
+    );
+  }
+  return lines.join("\n");
 }
 
 /** Streams the model's text to the browser as a plain-text response. */

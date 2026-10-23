@@ -56,6 +56,27 @@ it does not need a new course-level workflow. Special interactions may need a
 specialised editor/view. The registry is intentionally compile-time, not a
 third-party plugin loader. Invalid types, versions and configs fail validation.
 
+## Learner preferences
+
+`/onboarding` collects only cross-subject preferences: an optional display name,
+preferred language (`en`, `zh-Hans`, `zh-Hant`), a general goal and a learning
+style. Every field has a sensible default, so the page can be skipped. The old
+`zh` value is read as `zh-Hant`, which matches its previous label.
+
+Course pages offer an optional, collapsed per-course setting for experience and
+goal. It is stored in `course_learner_preferences` (one row per learner and
+course) and never changes another course. Learners without any preferences get
+the same balanced beginner defaults.
+
+Legacy `background` and `experience` columns are retained and readable, but the
+tutor no longer uses them to infer subject knowledge. New saves leave legacy
+columns untouched.
+
+The tutor context combines preferred language, learning style, general goal and
+the current course's experience/goal. Course-level values override the general
+goal when both exist; missing preferences fall back to clear English and a
+balanced style rather than blocking learning.
+
 ## Teacher workflow
 
 1. Sign in as an administrator-assigned instructor; open `/studio`.
@@ -86,8 +107,9 @@ server checks prevent publishing or sharing these private courses.
 1. Install Node.js 20.19+ (tested with Node 24), then `npm ci`.
 2. Apply every file in `supabase/migrations` in filename order, on a **staging
    project first**: `0001_init.sql`, `20261022050613_general_learning_platform.sql`,
-   `20261022180000_review_fixes.sql`, then
-   `20261022203000_quota_params_and_owner_read.sql`. Each migration is
+   `20261022180000_review_fixes.sql`,
+   `20261022203000_quota_params_and_owner_read.sql`, then
+   `20261022235900_learning_preferences.sql`. Each migration is
    transactional and preserves existing profiles/progress. The README has the
    fresh-project checklist (service role key, instructor grant, `/auth/callback`).
 3. Configure `.env.local` (or deployment environment):

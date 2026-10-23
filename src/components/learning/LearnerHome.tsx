@@ -8,8 +8,8 @@ import {
 } from "@/components/learning/ProgressSummary";
 import { useLearner, type ProgressMap } from "@/lib/learner-store";
 import {
-  BACKGROUND_LABELS,
   GOAL_LABELS,
+  LEARNING_STYLE_LABELS,
   type Course,
 } from "@/lib/types";
 
@@ -78,21 +78,21 @@ export function LearnerHome({ courses }: { courses: Course[] }) {
         </h1>
         {profile ? (
           <p className="mt-2 text-stone-600">
-            {BACKGROUND_LABELS[profile.background]} · Goal:{" "}
-            {GOAL_LABELS[profile.goal].toLowerCase()}
+            {GOAL_LABELS[profile.goal]} ·{" "}
+            {LEARNING_STYLE_LABELS[profile.learningStyle]}
             <Link
               href="/onboarding"
               className="ml-3 text-sm text-indigo-600 underline"
             >
-              Edit profile
+              Edit preferences
             </Link>
           </p>
         ) : (
           <p className="mt-2 text-stone-600">
             <Link href="/onboarding" className="text-indigo-600 underline">
-              Set up your profile
+              Set your learning preferences
             </Link>{" "}
-            to get personalised explanations and course recommendations.
+            to get explanations that match how you like to learn.
           </p>
         )}
       </header>

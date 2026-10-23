@@ -37,6 +37,12 @@ test("database enforces role, ownership, enrolment, publication and evidence bou
   await db.exec(ownerRead);
   await db.exec(ownerRead);
   await db.exec(
+    readFileSync(
+      "supabase/migrations/20261022235900_learning_preferences.sql",
+      "utf8",
+    ),
+  );
+  await db.exec(
     `insert into auth.users values ('${teacher}','teacher@example.test',now()),('${student}','student@example.test',now()),('${outsider}','outsider@example.test',now()),('${otherTeacher}','other@example.test',now()); update public.profiles set role='instructor' where id in ('${teacher}','${otherTeacher}');`,
   );
   async function as(id: string, sql: string) {
@@ -72,6 +78,28 @@ test("database enforces role, ownership, enrolment, publication and evidence bou
     "update public.profiles set display_name='Learner' where id=auth.uid() returning id",
   );
   assert.equal(renamed[0].rows.length, 1);
+  const styled = await as(
+    student,
+    "update public.profiles set learning_style='step_by_step' where id=auth.uid() returning learning_style",
+  );
+  assert.equal(styled[0].rows[0].learning_style, "step_by_step");
+  const preference = await as(
+    student,
+    "insert into public.course_learner_preferences(user_id,course_id,experience,goal) values(auth.uid(),'static-course','some','build') returning course_id",
+  );
+  assert.equal(preference[0].rows[0].course_id, "static-course");
+  assert.equal(
+    (await as(outsider, "select * from public.course_learner_preferences"))[0]
+      .rows.length,
+    0,
+  );
+  await assert.rejects(
+    as(
+      student,
+      `insert into public.course_learner_preferences(user_id,course_id,experience,goal) values('${outsider}','other-course','none','understand')`,
+    ),
+    /row-level security/,
+  );
   const quotaArgs = await db.exec(
     "select proname, proargnames::text as names from pg_proc where proname = 'consume_ai_quota'",
   );

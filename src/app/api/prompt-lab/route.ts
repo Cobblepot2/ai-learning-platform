@@ -3,6 +3,7 @@ import { enforceQuota } from "@/lib/ai/quota";
 import { z } from "zod";
 import { readLesson } from "@/lib/learning/repository";
 import { MAX_CHARS, badRequest, describeLearner, generateJson, missingKey } from "@/lib/ai/gemini";
+import { normalizeProfile } from "@/lib/learner/preferences";
 
 const Feedback = z.object({
   criteria: z
@@ -22,6 +23,7 @@ export async function POST(req: Request) {
   await enforceQuota(db, user.id, "prompt-lab");
 
   const { courseId, lessonId, blockId, profile, draft } = await req.json();
+  const learner = profile == null ? null : normalizeProfile(profile);
   const block = (await readLesson(courseId, lessonId))?.lesson.blocks.find((b) => b.id === blockId);
   if (block?.type !== "prompt-lab") return badRequest("Unknown exercise");
   if (typeof draft !== "string" || !draft.trim() || draft.length > MAX_CHARS) return badRequest("Invalid draft");
@@ -31,7 +33,7 @@ export async function POST(req: Request) {
     system: `You review task descriptions that students write for AI coding agents. Judge each rubric item strictly but kindly, and quote the student's own words in your comments. Write feedback in the learner's preferred language; keep the improved version in English.
 
 <learner>
-${describeLearner(profile)}
+${describeLearner(learner)}
 </learner>`,
     prompt: `Task the student was given: ${block.task}
 

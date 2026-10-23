@@ -13,7 +13,13 @@ import {
   type LessonProgress,
   type ProgressMap,
 } from "@/lib/learner-progress";
-import type { BlockResult, LearnerProfile } from "@/lib/types";
+import {
+  normalizeCoursePreference,
+  normalizeProfile,
+  profileFromRow,
+  profileToRow,
+} from "@/lib/learner/preferences";
+import type { BlockResult, CoursePreference, LearnerProfile } from "@/lib/types";
 
 export type { LessonProgress, ProgressMap } from "@/lib/learner-progress";
 
@@ -22,6 +28,11 @@ interface LearnerState {
   user: User | null;
   profile: LearnerProfile | null;
   saveProfile: (profile: LearnerProfile) => Promise<void>;
+  coursePreferences: Record<string, CoursePreference>;
+  saveCoursePreference: (
+    courseId: string,
+    preference: CoursePreference,
+  ) => Promise<void>;
   progress: ProgressMap;
   recordBlock: (courseId: string, lessonId: string, blockId: string, result: BlockResult) => void;
   completeLesson: (courseId: string, lessonId: string) => Promise<void>;
@@ -36,6 +47,7 @@ interface LearnerSession {
 }
 
 const PROFILE_KEY = "learner-profile";
+const COURSE_PREFS_KEY = "learner-course-preferences";
 const LearnerContext = createContext<LearnerState | null>(null);
 
 function readLocal<T>(key: string): T | null {
@@ -59,6 +71,26 @@ function profileKey(userId: string | null) {
   return userId ? `${PROFILE_KEY}:${userId}` : PROFILE_KEY;
 }
 
+function coursePrefsKey(userId: string | null) {
+  return userId ? `${COURSE_PREFS_KEY}:${userId}` : COURSE_PREFS_KEY;
+}
+
+function readProfile(key: string): LearnerProfile | null {
+  const raw = readLocal<unknown>(key);
+  return raw ? normalizeProfile(raw) : null;
+}
+
+function readCoursePreferences(key: string): Record<string, CoursePreference> {
+  const raw = readLocal<unknown>(key);
+  if (!raw || typeof raw !== "object") return {};
+  const preferences: Record<string, CoursePreference> = {};
+  for (const [courseId, value] of Object.entries(raw)) {
+    const preference = normalizeCoursePreference(value);
+    if (preference) preferences[courseId] = preference;
+  }
+  return preferences;
+}
+
 export function LearnerProvider({ children }: { children: React.ReactNode }) {
   const activeSession = useRef<LearnerSession | null>(null);
   const progressRef = useRef<ProgressMap>({});
@@ -66,6 +98,7 @@ export function LearnerProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<LearnerProfile | null>(null);
+  const [coursePreferences, setCoursePreferences] = useState<Record<string, CoursePreference>>({});
   const [progress, setProgress] = useState<ProgressMap>({});
   const [syncError, setSyncError] = useState("");
   const [loadError, setLoadError] = useState(false);
@@ -100,7 +133,8 @@ export function LearnerProvider({ children }: { children: React.ReactNode }) {
       setSyncError("");
       setLoadError(false);
       setRetrying(false);
-      setProfile(readLocal<LearnerProfile>(profileKey(userId)));
+      setProfile(readProfile(profileKey(userId)));
+      setCoursePreferences(readCoursePreferences(coursePrefsKey(userId)));
       replaceProgress(mergeRemoteProgress({}, readLocal<ProgressMap>(progressKey(userId)) ?? {}));
       setReady(!userId);
       if (!supabase || !userId) return;
@@ -112,16 +146,25 @@ export function LearnerProvider({ children }: { children: React.ReactNode }) {
         try {
           const { data: row } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
           if (!isCurrent()) return;
-          if (row?.background) {
-            const remote: LearnerProfile = {
-              displayName: row.display_name ?? "",
-              background: row.background,
-              experience: row.experience,
-              goal: row.goal,
-              language: row.language ?? "en",
-            };
+          if (row) {
+            const remote = profileFromRow(row);
             setProfile(remote);
             writeLocal(profileKey(userId), remote);
+          }
+
+          const { data: preferenceRows, error: preferenceError } = await supabase
+            .from("course_learner_preferences")
+            .select("course_id,experience,goal")
+            .eq("user_id", userId);
+          if (!isCurrent()) return;
+          if (!preferenceError) {
+            const remotePreferences: Record<string, CoursePreference> = {};
+            for (const preferenceRow of preferenceRows ?? []) {
+              const preference = normalizeCoursePreference(preferenceRow);
+              if (preference) remotePreferences[preferenceRow.course_id as string] = preference;
+            }
+            setCoursePreferences(remotePreferences);
+            writeLocal(coursePrefsKey(userId), remotePreferences);
           }
 
           const { data: rows, error } = await supabase.from("lesson_progress").select("*").eq("user_id", userId);
@@ -175,20 +218,72 @@ export function LearnerProvider({ children }: { children: React.ReactNode }) {
 
   const saveProfile = useCallback(async (next: LearnerProfile) => {
     if (!session || activeSession.current !== session) return;
-    setProfile(next);
-    writeLocal(profileKey(user?.id ?? null), next);
+    const normalized = normalizeProfile(next);
     const supabase = getSupabase();
     if (supabase && user) {
-      await supabase.from("profiles").upsert({
-        id: user.id,
-        display_name: next.displayName,
-        background: next.background,
-        experience: next.experience,
-        goal: next.goal,
-        language: next.language,
+      // Update rather than upsert: PostgREST's upsert would also assign the
+      // primary key, but ordinary learners have no UPDATE grant on `id`.
+      const row = {
+        ...profileToRow(normalized),
         updated_at: new Date().toISOString(),
-      });
+      };
+      const { data: updated, error } = await supabase
+        .from("profiles")
+        .update(row)
+        .eq("id", user.id)
+        .select("id");
+      if (error) {
+        throw new Error(
+          "Could not save your preferences. Check your connection and try again.",
+        );
+      }
+      if (!updated?.length) {
+        const { error: insertError } = await supabase
+          .from("profiles")
+          .insert({ id: user.id, ...row });
+        if (insertError) {
+          throw new Error(
+            "Could not save your preferences. Check your connection and try again.",
+          );
+        }
+      }
     }
+    if (activeSession.current !== session) return;
+    setProfile(normalized);
+    writeLocal(profileKey(user?.id ?? null), normalized);
+  }, [user, session]);
+
+  const saveCoursePreference = useCallback(async (courseId: string, preference: CoursePreference) => {
+    if (!session || activeSession.current !== session) return;
+    const normalized = normalizeCoursePreference(preference);
+    if (!normalized) {
+      throw new Error("Choose an experience level and a goal for this course.");
+    }
+    const supabase = getSupabase();
+    if (supabase && user) {
+      const { error } = await supabase
+        .from("course_learner_preferences")
+        .upsert(
+          {
+            user_id: user.id,
+            course_id: courseId,
+            ...normalized,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "user_id,course_id" },
+        );
+      if (error) {
+        throw new Error(
+          "Could not save this course's preferences. Check your connection and try again.",
+        );
+      }
+    }
+    if (activeSession.current !== session) return;
+    setCoursePreferences((previous) => {
+      const next = { ...previous, [courseId]: normalized };
+      writeLocal(coursePrefsKey(user?.id ?? null), next);
+      return next;
+    });
   }, [user, session]);
 
   const logEvent = useCallback((courseId: string, lessonId: string | null, eventType: string, payload: object = {}) => {
@@ -265,8 +360,8 @@ export function LearnerProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo<LearnerState>(
-    () => ({ ready, user, profile, saveProfile, progress, recordBlock, completeLesson, noteServerLessonComplete, logEvent, signOut }),
-    [ready, user, profile, saveProfile, progress, recordBlock, completeLesson, noteServerLessonComplete, logEvent, signOut],
+    () => ({ ready, user, profile, saveProfile, coursePreferences, saveCoursePreference, progress, recordBlock, completeLesson, noteServerLessonComplete, logEvent, signOut }),
+    [ready, user, profile, saveProfile, coursePreferences, saveCoursePreference, progress, recordBlock, completeLesson, noteServerLessonComplete, logEvent, signOut],
   );
 
   return (

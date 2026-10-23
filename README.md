@@ -1,6 +1,6 @@
 # DevPath (working name)
 
-A GenAI-powered learning platform with interactive mini-courses on software engineering and on building software with AI coding agents. Content and feedback adapt to each learner's background (non-CS major, CS student, CS graduate, career switcher), goal and preferred language.
+A GenAI-powered learning platform with interactive mini-courses across subjects. Learners set a preferred language, a general goal and a learning style; course-level experience can differ per subject. AI feedback and the tutor adapt to those preferences rather than to a computer-science background label.
 
 This is the prototype for the week 8–9 project discussion meeting.
 
@@ -8,7 +8,8 @@ This is the prototype for the week 8–9 project discussion meeting.
 
 | Area | Status |
 |---|---|
-| Learner profile (background, experience, goal, language) | ✅ saved in the browser, synced to Supabase when signed in |
+| Learner preferences (name, language, goal, learning style) | ✅ saved locally, synced to Supabase when signed in |
+| Course-level experience and goal | ✅ optional per-course preference, stored separately |
 | 2 courses, 6 lessons | ✅ `src/content/courses/` |
 | Quiz, ordering mini-game, code-review bug hunt | ✅ |
 | AI tutor side panel (knows the lesson, adapts to the profile) | ✅ `/api/tutor` (streaming) |
@@ -45,6 +46,7 @@ npm run dev                  # http://localhost:3000
    - `20261022050613_general_learning_platform.sql`
    - `20261022180000_review_fixes.sql`
    - `20261022203000_quota_params_and_owner_read.sql`
+   - `20261022235900_learning_preferences.sql`
 3. Copy the project URL, the anon key and the service role key into `.env.local`:
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
@@ -82,6 +84,20 @@ supabase/migrations/   database schema
 ## Adding a lesson
 
 Lessons are lists of blocks (`text`, `quiz`, `ordering`, `code-review`, `roleplay`, `prompt-lab`) defined in `src/lib/types.ts`. Add a lesson object to a course file in `src/content/courses/` and it appears automatically. The same schema is what the planned AI course generator will output.
+
+## Learning preferences
+
+`/onboarding` collects an optional display name, preferred language (English,
+简体中文 or 繁體中文), a general goal and a learning style. All fields have
+defaults and the page can be skipped. Existing profiles load their saved values;
+the old `zh` language value is read as `zh-Hant`.
+
+Each course page also offers an optional, collapsed setting for experience and a
+course-specific goal. It is stored in `course_learner_preferences` per learner
+and course, so knowing JavaScript well does not imply prior knowledge of another
+subject. The AI tutor receives the global preferences plus the current course's
+experience and goal; legacy `background`/`experience` columns remain readable but
+no longer drive teaching.
 
 ## General-purpose course studio
 

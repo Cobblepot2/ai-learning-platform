@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import type { Course } from "@/lib/types";
 import { catalogCourses } from "@/content/courses";
 import { useLearner } from "@/lib/learner-store";
-import { BACKGROUND_LABELS, GOAL_LABELS } from "@/lib/types";
+import { GOAL_LABELS, LEARNING_STYLE_LABELS } from "@/lib/types";
 import {
   ContinueLearning,
   CourseProgressList,
@@ -65,12 +65,13 @@ export default function DashboardPage() {
       </h1>
       {profile ? (
         <p className="mt-2 text-stone-600">
-          {BACKGROUND_LABELS[profile.background]} · Goal: {GOAL_LABELS[profile.goal].toLowerCase()}
+          {GOAL_LABELS[profile.goal]} ·{" "}
+          {LEARNING_STYLE_LABELS[profile.learningStyle]}
         </p>
       ) : (
         <p className="mt-2 text-stone-600">
           <Link href="/onboarding" className="text-indigo-600 underline">
-            Set up your profile
+            Set your learning preferences
           </Link>{" "}
           to get personalised explanations.
         </p>

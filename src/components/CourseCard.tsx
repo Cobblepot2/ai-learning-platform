@@ -5,10 +5,9 @@ import { useLearner } from "@/lib/learner-store";
 import type { Course } from "@/lib/types";
 
 export function CourseCard({ course }: { course: Course }) {
-  const { profile, progress } = useLearner();
+  const { progress } = useLearner();
   const done = course.lessons.filter((l) => progress[`${course.id}/${l.id}`]?.completedAt).length;
   const pct = Math.round((done / course.lessons.length) * 100);
-  const recommended = profile ? course.audience.includes(profile.background) : false;
   const minutes = course.lessons.reduce((sum, l) => sum + l.minutes, 0);
 
   return (
@@ -18,9 +17,6 @@ export function CourseCard({ course }: { course: Course }) {
     >
       <div className="flex items-start justify-between gap-2">
         <span className="text-3xl">{course.emoji}</span>
-        {recommended && (
-          <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">Recommended for you</span>
-        )}
       </div>
       <h3 className="mt-4 text-lg font-semibold text-stone-900 group-hover:text-indigo-700">{course.title}</h3>
       <p className="mt-1 text-sm text-stone-600">{course.tagline}</p>
