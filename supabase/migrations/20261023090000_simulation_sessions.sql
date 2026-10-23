@@ -5,6 +5,9 @@ begin;
 
 create table if not exists public.simulation_sessions (
   id uuid primary key,
+  -- New value on every restart. learning_attempts.id uses this, not the session id,
+  -- so a later run is stored even when the first run already wrote a row.
+  run_id uuid not null default gen_random_uuid(),
   user_id uuid not null references auth.users (id) on delete cascade,
   course_id text not null,
   lesson_id text not null,
@@ -19,7 +22,8 @@ create table if not exists public.simulation_sessions (
   version integer not null default 1 check (version > 0),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique (user_id, course_id, lesson_id, activity_id)
+  unique (user_id, course_id, lesson_id, activity_id),
+  unique (run_id)
 );
 
 create index if not exists simulation_sessions_user_idx

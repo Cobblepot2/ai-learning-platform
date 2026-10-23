@@ -24,6 +24,11 @@ import {
 } from "../src/lib/learning/registry";
 import { seEssentials } from "../src/content/courses/se-essentials";
 import { presentationDemos } from "../src/content/courses/presentation-demos";
+import { simulationApiError } from "../src/lib/learning/simulation/http";
+import {
+  isLearnerSimulation,
+  redactCourseSimulations,
+} from "../src/lib/learning/simulation/public";
 
 const literal = {
   schemaVersion: 1 as const,
@@ -580,4 +585,47 @@ test("the software-engineering and business demos share one valid schema", () =>
     }
   }
   assert.equal(domains.size, 2);
+});
+
+test("database lesson payloads omit simulation rules and endings", () => {
+  const source = seEssentials.lessons
+    .flatMap((lesson) => lesson.blocks)
+    .map((block) => validateActivity(block))
+    .find((parsed) => parsed.success && parsed.data.activityType === "simulation");
+  assert.ok(source?.success && source.data.activityType === "simulation");
+  if (!source?.success || source.data.activityType !== "simulation") return;
+  const redacted = redactCourseSimulations(seEssentials);
+  const block = redacted.lessons
+    .flatMap((lesson) => lesson.blocks)
+    .find((item) => item.id === source.data.id);
+  assert.equal(isLearnerSimulation(block), true);
+  if (!isLearnerSimulation(block)) return;
+  assert.equal(block.config.title, source.data.config.title);
+  assert.equal(block.config.completion.maxSteps, source.data.config.completion.maxSteps);
+  assert.deepEqual(block.config.scenario, source.data.config.scenario);
+  const payload = JSON.stringify(block);
+  assert.equal(payload.includes("success-ending"), false);
+  assert.equal(payload.includes("shared-view"), false);
+  assert.equal(payload.includes("\"stages\""), false);
+  assert.equal(payload.includes("\"variables\""), false);
+  assert.equal(validateActivity(block).success, false);
+  assert.equal(
+    JSON.stringify(seEssentials).includes("success-ending"),
+    true,
+  );
+});
+
+test("simulation engine errors keep their status", async () => {
+  const stale = simulationApiError(
+    new SimulationError("That choice is not part of this stage.", 409),
+  );
+  assert.equal(stale.status, 409);
+  assert.deepEqual(await stale.json(), {
+    error: "That choice is not part of this stage.",
+  });
+  const generic = simulationApiError(new Error("database password"));
+  assert.equal(generic.status, 500);
+  const body = await generic.json();
+  assert.equal(body.error, "Request failed.");
+  assert.equal(JSON.stringify(body).includes("password"), false);
 });

@@ -13,6 +13,7 @@ import {
 } from "@/lib/learning/registry";
 import type { BlockResult, LessonBlock } from "@/lib/types";
 import { SimulationView } from "@/components/learning/SimulationView";
+import { isLearnerSimulation } from "@/lib/learning/simulation/public";
 
 type AttemptRow = {
   activity_id?: string;
@@ -488,6 +489,22 @@ export function ActivityView({
   result?: BlockResult;
   onResult: (result: BlockResult) => void;
 }) {
+  if (isLearnerSimulation(block)) {
+    return (
+      <div className="space-y-2">
+        {result?.done && (
+          <p className="text-sm font-medium text-emerald-700">Done ✓</p>
+        )}
+        <SimulationView
+          block={block}
+          courseId={courseId}
+          lessonId={lessonId}
+          preview={preview}
+          onResult={onResult}
+        />
+      </div>
+    );
+  }
   const parsed = validateActivity(block);
   if (!parsed.success) {
     return (

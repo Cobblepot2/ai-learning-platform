@@ -1,6 +1,5 @@
 import { z } from "zod";
 import {
-  apiError,
   HttpError,
   recordDb,
   requireAccount,
@@ -25,6 +24,7 @@ import {
   outcomeScore,
   simulationFeedback,
 } from "@/lib/learning/simulation/evaluate";
+import { simulationApiError } from "@/lib/learning/simulation/http";
 import type { SimulationOutcome } from "@/lib/learning/simulation/schema";
 
 const requestSchema = z.object({
@@ -39,6 +39,7 @@ type SimulationActivity = Extract<LearningActivity, { activityType: "simulation"
 
 type SessionRow = {
   id: string;
+  run_id: string;
   user_id: string;
   course_id: string;
   lesson_id: string;
@@ -156,6 +157,7 @@ async function createSession(
     .from("simulation_sessions")
     .insert({
       id: crypto.randomUUID(),
+      run_id: crypto.randomUUID(),
       user_id: userId,
       course_id: courseId,
       lesson_id: lessonId,
@@ -207,7 +209,7 @@ async function recordAttempt(
   const writer = recordDb();
   const { error } = await writer.from("learning_attempts").upsert(
     {
-      id: session.id,
+      id: session.run_id,
       user_id: session.user_id,
       course_id: session.course_id,
       lesson_id: session.lesson_id,
@@ -226,11 +228,11 @@ async function recordAttempt(
   }
 }
 
-async function storedFeedback(sessionId: string): Promise<LearningFeedback | null> {
+async function storedFeedback(runId: string): Promise<LearningFeedback | null> {
   const { data, error } = await recordDb()
     .from("learning_attempts")
     .select("feedback")
-    .eq("id", sessionId)
+    .eq("id", runId)
     .maybeSingle();
   if (error) return null;
   return (data?.feedback as LearningFeedback | null) ?? null;
@@ -244,19 +246,23 @@ async function completedResponse(
 ) {
   const shown =
     feedback ??
-    (databaseCourse ? await storedFeedback(session.id) : null) ??
+    (databaseCourse ? await storedFeedback(session.run_id) : null) ??
     deterministicSimulationFeedback(
       block.config,
       stateOf(session),
       historyOf(session),
     );
+  // Persist before reporting saved. A failed insert throws, so a later GET can
+  // retry this function instead of trusting the completed session flag alone.
+  let saved = false;
   if (databaseCourse && session.outcome) {
     await recordAttempt(session, block, shown);
+    saved = true;
   }
   return Response.json({
     session: simulationView(block.config, stateOf(session), historyOf(session)),
     feedback: shown,
-    saved: databaseCourse && Boolean(session.outcome),
+    saved,
   });
 }
 
@@ -274,24 +280,13 @@ export async function GET(req: Request) {
     const session = await readSession(account.user.id, courseId, lessonId, activityId);
     if (!session) return Response.json({ session: null });
     if (!snapshotMatches(session, block)) changedActivity();
-    const view = simulationView(block.config, stateOf(session), historyOf(session));
     if (session.status === "completed") {
-      const feedback =
-        (databaseCourse ? await storedFeedback(session.id) : null) ??
-        deterministicSimulationFeedback(
-          block.config,
-          stateOf(session),
-          historyOf(session),
-        );
-      return Response.json({
-        session: view,
-        feedback,
-        saved: databaseCourse && Boolean(session.outcome),
-      });
+      return completedResponse(session, block, databaseCourse);
     }
+    const view = simulationView(block.config, stateOf(session), historyOf(session));
     return Response.json({ session: view, saved: true });
   } catch (error) {
-    return apiError(error);
+    return simulationApiError(error);
   }
 }
 
@@ -363,6 +358,7 @@ export async function POST(req: Request) {
       const { data, error } = await writer
         .from("simulation_sessions")
         .update({
+          run_id: crypto.randomUUID(),
           course_revision: revision,
           activity_snapshot: block,
           state,
@@ -466,6 +462,6 @@ export async function POST(req: Request) {
       saved: true,
     });
   } catch (error) {
-    return apiError(error);
+    return simulationApiError(error);
   }
 }

@@ -13,18 +13,28 @@ import {
   type SimulationPublicView,
   type SimulationState,
 } from "@/lib/learning/simulation/engine";
-import type { SimulationOutcome } from "@/lib/learning/simulation/schema";
+import {
+  isLearnerSimulation,
+  type LearnerSimulationActivity,
+} from "@/lib/learning/simulation/public";
+import type { SimulationConfig, SimulationOutcome } from "@/lib/learning/simulation/schema";
 import type { BlockResult } from "@/lib/types";
 
 type SimulationBlock = Extract<LearningActivity, { activityType: "simulation" }>;
+type PlayableSimulation = SimulationBlock | LearnerSimulationActivity;
 
 type Props = {
-  block: SimulationBlock;
+  block: PlayableSimulation;
   courseId: string;
   lessonId: string;
   preview?: boolean;
+  result?: BlockResult;
   onResult: (result: BlockResult) => void;
 };
+
+function engineConfig(block: PlayableSimulation): SimulationConfig | null {
+  return isLearnerSimulation(block) ? null : block.config;
+}
 
 type Mode = "loading" | "server" | "local";
 
@@ -249,19 +259,29 @@ export function SimulationView({
   }, []);
 
   const resetLocal = useCallback(() => {
-    const state = startSimulation(block.config);
+    const config = engineConfig(block);
+    if (!config) {
+      setError("This simulation can only run on the server.");
+      return;
+    }
+    const state = startSimulation(config);
     setLocal({ state, history: [] });
-    setView(simulationView(block.config, state, []));
+    setView(simulationView(config, state, []));
     setFeedback(null);
     setError("");
     setStarted(true);
     reported.current = false;
-  }, [block.config]);
+  }, [block]);
 
   const configKey = JSON.stringify(block.config);
   useEffect(() => {
     if (preview) {
-      const config = JSON.parse(configKey) as SimulationBlock["config"];
+      const config = engineConfig(block);
+      if (!config) {
+        setMode("server");
+        setError("This preview is missing the simulation rules.");
+        return;
+      }
       const state = startSimulation(config);
       setLocal({ state, history: [] });
       setView(simulationView(config, state, []));
@@ -281,6 +301,10 @@ export function SimulationView({
           response.status === 401 ||
           (!isDatabaseCourseId(courseId) && !response.ok)
         ) {
+          if (!engineConfig(block)) {
+            setMode("server");
+            throw new Error("Sign in to play this simulation.");
+          }
           // Static catalogue courses still work as local practice when there is
           // no account or no record storage. Nothing is written to a gradebook.
           setMode("local");
@@ -309,7 +333,7 @@ export function SimulationView({
     return () => {
       active = false;
     };
-  }, [block.id, configKey, courseId, lessonId, preview, reportCompletion]);
+  }, [block, block.id, configKey, courseId, lessonId, preview, reportCompletion]);
 
   async function beginLocal() {
     resetLocal();
@@ -334,6 +358,9 @@ export function SimulationView({
         }),
       });
       if (response.status === 401 || response.status === 503) {
+        if (!engineConfig(block)) {
+          throw new Error("Sign in to play this simulation.");
+        }
         setMode("local");
         await beginLocal();
         return;
@@ -353,15 +380,20 @@ export function SimulationView({
 
   function chooseLocal(choiceId: string) {
     setError("");
+    const config = engineConfig(block);
+    if (!config) {
+      setError("This simulation can only run on the server.");
+      return;
+    }
     try {
       const base =
         local ?? {
-          state: startSimulation(block.config),
+          state: startSimulation(config),
           history: [] as SimulationEvent[],
         };
-      const result = applySimulationAction(block.config, base.state, choiceId);
+      const result = applySimulationAction(config, base.state, choiceId);
       const history = [...base.history, result.event];
-      const next = simulationView(block.config, result.state, history);
+      const next = simulationView(config, result.state, history);
       setLocal({ state: result.state, history });
       setView(next);
       reportCompletion(next);
@@ -432,13 +464,7 @@ export function SimulationView({
     }
   }
 
-  const scenario = view?.scenario ?? {
-    description: block.config.scenario.description,
-    objectives: block.config.scenario.objectives,
-    initialSituation: block.config.scenario.initialSituation,
-    participantRole: block.config.scenario.participantRole,
-    persona: block.config.scenario.persona,
-  };
+  const scenario = view?.scenario ?? block.config.scenario;
 
   const intro = (
     <section className="space-y-4 rounded-2xl border border-stone-200 bg-white p-6">

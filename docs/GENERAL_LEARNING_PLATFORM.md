@@ -96,10 +96,18 @@ stage, action availability and status before applying effects. The server route
 public projection (current stage, visible variables, available actions and
 history), and rejects stale versions with 409. Clients submit only an action id;
 they cannot set variables, stage, score or outcome. On completion the route
-writes an idempotent `learning_attempts` row for database courses using the
-session id, and returns deterministic feedback. If Gemini and quota allow, an
-AI debrief replaces only the explanatory text; it cannot change the engine's
-outcome or state.
+writes an idempotent `learning_attempts` row for database courses. The attempt
+id is the session's `run_id`, which changes on every restart, so a later run is
+saved even when an earlier run already exists. Re-submitting the same run still
+uses `ignoreDuplicates`. `saved` is true only after that row exists. If Gemini
+and quota allow, an AI debrief replaces only the explanatory text; it cannot
+change the engine's outcome or state.
+
+Database lessons rendered for students (`/courses/[courseId]/[lessonId]` and the
+course outline) replace each simulation config with the title, scenario and step
+limit. Stages, variables, conditions, effects and debriefs stay on the server.
+Teacher preview and static catalogue courses still receive the full config,
+because those runs execute the engine in the browser.
 
 The teacher editor (`SimulationEditor`) provides structured forms for every part
 of the DSL. The AI builder can propose a simulation from a learning goal, but

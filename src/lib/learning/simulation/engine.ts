@@ -298,9 +298,10 @@ function visibleVariables(
 }
 
 /**
- * The projection sent to students. Rules, conditions, effects and hidden
- * variables never leave the server; only the current scene, visible state and
- * currently available actions are returned.
+ * The scene sent after each action. Rules, conditions, effects and hidden
+ * variables are not in this view. Database lesson pages also omit the full
+ * config from the page payload. Static courses and teacher preview still
+ * include it, because those runs execute the engine in the browser.
  */
 export function simulationView(
   config: SimulationConfig,

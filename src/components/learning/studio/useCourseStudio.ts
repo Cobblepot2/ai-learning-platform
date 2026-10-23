@@ -564,7 +564,10 @@ export function useCourseStudio({
       setSimulationProposal(null);
       return;
     }
-    insertActivity(simulationProposal.lesson, simulationProposal.activity);
+    insertActivity(simulationProposal.lesson, {
+      ...simulationProposal.activity,
+      id: crypto.randomUUID(),
+    });
     setSimulationProposal(null);
     setTab("edit");
     setMessage(

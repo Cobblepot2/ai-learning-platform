@@ -105,10 +105,12 @@ defaults, editor/renderer and optional evaluator to the registry.
 
 A `simulation` activity is a Zod-validated declarative scenario: bounded state
 variables, stages, actions with availability conditions, effects, an optional
-next stage, completion rules and a rubric. The server owns the state; clients
-send only an action id. There is no generated JavaScript, expression evaluator,
-`eval` or external call. AI can design the structure in the course studio, but
-the teacher reviews it, and the deterministic engine works without AI.
+next stage, completion rules and a rubric. The server owns the state for saved
+courses, and those lesson pages include only the title, scenario and step limit.
+Clients send only an action id. Static courses and teacher preview still run the
+same engine in the browser. There is no generated JavaScript, expression
+evaluator, `eval` or external call. AI can design the structure in the course
+studio, but the teacher reviews it, and the deterministic engine works without AI.
 
 See the architecture document for the DSL and the two demo scenarios
 (requirement prioritisation and supplier negotiation).
