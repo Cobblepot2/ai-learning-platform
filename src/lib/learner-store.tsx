@@ -6,6 +6,7 @@ import { getSupabase } from "@/lib/supabase/client";
 import { isDatabaseCourseId } from "@/lib/learning/ids";
 import {
   createLegacyProgressSync,
+  mergeBlockResult,
   mergeRemoteProgress,
   progressKey,
   sameLessonProgress,
@@ -305,7 +306,10 @@ export function LearnerProvider({ children }: { children: React.ReactNode }) {
   const recordBlock = useCallback((courseId: string, lessonId: string, blockId: string, result: BlockResult) => {
     const lesson = updateLesson(courseId, lessonId, (prev) => ({
       ...prev,
-      blocks: { ...prev.blocks, [blockId]: result },
+      blocks: {
+        ...prev.blocks,
+        [blockId]: mergeBlockResult(prev.blocks[blockId], result),
+      },
     }));
     if (!lesson) return;
     if (session?.sync) {

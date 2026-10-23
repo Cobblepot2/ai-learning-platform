@@ -2,6 +2,17 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { isDatabaseCourseId } from "./learning/ids";
 import type { BlockResult } from "./types";
 
+/** A later submit cannot undo completion or replace a better score. */
+export function mergeBlockResult(
+  previous: BlockResult | undefined,
+  incoming: BlockResult,
+): BlockResult {
+  return mergeLessonProgress(
+    previous ? { blocks: { block: previous } } : undefined,
+    { blocks: { block: incoming } },
+  ).blocks.block;
+}
+
 export interface LessonProgress {
   completedAt?: string;
   blocks: Record<string, BlockResult>;

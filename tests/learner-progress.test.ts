@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { createClient } from "@supabase/supabase-js";
 import {
   createLegacyProgressSync,
+  mergeBlockResult,
   mergeLessonProgress,
   mergeRemoteProgress,
   progressKey,
@@ -223,6 +224,25 @@ test("refresh reconciliation retains unsaved legacy progress while trusting serv
   assert.equal(merged[`${databaseCourse}/cache-only`], undefined);
   assert.deepEqual(remote, originalRemote);
   assert.deepEqual(cached, originalCached);
+});
+
+test("revisiting an activity cannot mark it incomplete or drop a better score", () => {
+  assert.deepEqual(
+    mergeBlockResult({ done: true, score: 1 }, { done: false, score: 0 }),
+    { done: true, score: 1 },
+  );
+  assert.deepEqual(
+    mergeBlockResult({ done: true, score: 0.5 }, { done: true }),
+    { done: true, score: 0.5 },
+  );
+  assert.deepEqual(
+    mergeBlockResult({ done: false, score: 0.25 }, { done: true, score: 1 }),
+    { done: true, score: 1 },
+  );
+  assert.deepEqual(mergeBlockResult(undefined, { done: false, score: 0 }), {
+    done: false,
+    score: 0,
+  });
 });
 
 test("progress merge preserves completion, best scores, and meaningful zero scores", () => {

@@ -27,6 +27,7 @@ type ViewProps = {
   courseId: string;
   lessonId: string;
   preview?: boolean;
+  result?: BlockResult;
   onResult: (result: BlockResult) => void;
 };
 
@@ -299,9 +300,11 @@ function CodeReviewView(props: ViewProps & { block: Extract<LearningActivity, { 
   const [picked, setPicked] = useState<number[]>([]);
   const state = useAttempts(props);
   const lines = config.code.split("\n");
-  const solved = matching(state.history, props.block).some(
-    (row) => typeof row.score === "number" && row.score > 0,
-  );
+  const solved =
+    Boolean(props.result?.done) ||
+    matching(state.history, props.block).some(
+      (row) => typeof row.score === "number" && row.score > 0,
+    );
 
   function pick(line: number) {
     if (solved || state.busy || picked.includes(line)) return;
@@ -468,6 +471,7 @@ export function ActivityView({
   courseId,
   lessonId,
   preview,
+  result,
   onResult,
 }: {
   block: Pick<LessonBlock, "type" | "id"> & {
@@ -479,6 +483,7 @@ export function ActivityView({
   courseId: string;
   lessonId: string;
   preview?: boolean;
+  result?: BlockResult;
   onResult: (result: BlockResult) => void;
 }) {
   const parsed = validateActivity(block);
@@ -493,12 +498,18 @@ export function ActivityView({
     props: ViewProps & { block: LearningActivity },
   ) => React.ReactNode;
   return (
-    <Renderer
-      block={parsed.data}
-      courseId={courseId}
-      lessonId={lessonId}
-      preview={preview}
-      onResult={onResult}
-    />
+    <div className="space-y-2">
+      {result?.done && (
+        <p className="text-sm font-medium text-emerald-700">Done ✓</p>
+      )}
+      <Renderer
+        block={parsed.data}
+        courseId={courseId}
+        lessonId={lessonId}
+        preview={preview}
+        result={result}
+        onResult={onResult}
+      />
+    </div>
   );
 }

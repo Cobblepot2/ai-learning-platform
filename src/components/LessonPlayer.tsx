@@ -6,6 +6,7 @@ import { useState } from "react";
 import { TutorPanel } from "@/components/TutorPanel";
 import { buttonPrimary } from "@/components/blocks/BlockCard";
 import { isDatabaseCourseId } from "@/lib/learning/ids";
+import { mergeBlockResult } from "@/lib/learner-progress";
 import { useLearner } from "@/lib/learner-store";
 import type { BlockResult, Course, Lesson, LessonBlock } from "@/lib/types";
 
@@ -35,9 +36,13 @@ export function LessonPlayer({ course, lesson, preview = false }: { course: Cour
         courseId={course.id}
         lessonId={lesson.id}
         preview={preview}
+        result={results[block.id]}
         onResult={(result: BlockResult) =>
           preview
-            ? setPreviewResults((prev) => ({ ...prev, [block.id]: result }))
+            ? setPreviewResults((prev) => ({
+                ...prev,
+                [block.id]: mergeBlockResult(prev[block.id], result),
+              }))
             : recordBlock(course.id, lesson.id, block.id, result)
         }
       />
