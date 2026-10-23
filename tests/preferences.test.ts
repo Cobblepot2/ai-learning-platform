@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   normalizeCoursePreference,
   normalizeProfile,
+  preferredLanguageName,
   profileToRow,
 } from "../src/lib/learner/preferences";
 
@@ -58,6 +59,15 @@ test("writing preferences does not erase legacy profile columns", () => {
   const fresh = profileToRow(normalizeProfile({ displayName: "B" }));
   assert.equal("background" in fresh, false);
   assert.equal("experience" in fresh, false);
+});
+
+test("role-play language follows zh-Hans, zh-Hant and legacy zh", () => {
+  assert.equal(preferredLanguageName(null), "English");
+  assert.equal(preferredLanguageName({ language: "zh" }), "Traditional Chinese (繁體中文)");
+  assert.equal(preferredLanguageName({ language: "zh-Hans" }), "Simplified Chinese (简体中文)");
+  assert.equal(preferredLanguageName({ language: "zh-Hant" }), "Traditional Chinese (繁體中文)");
+  assert.equal(preferredLanguageName({ language: "zh-CN" }), "Simplified Chinese (简体中文)");
+  assert.equal(preferredLanguageName({ language: "fr" }), "English");
 });
 
 test("course preferences are scoped and validated independently", () => {

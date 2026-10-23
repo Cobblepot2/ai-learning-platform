@@ -3,6 +3,7 @@ import { enforceQuota } from "@/lib/ai/quota";
 import { z } from "zod";
 import { readLesson } from "@/lib/learning/repository";
 import { badRequest, describeLearner, generateJson, missingKey, streamText, toContents } from "@/lib/ai/gemini";
+import { normalizeProfile, preferredLanguageName } from "@/lib/learner/preferences";
 import type { RoleplayBlock } from "@/lib/types";
 
 const Debrief = z.object({
@@ -28,6 +29,7 @@ export async function POST(req: Request) {
   await enforceQuota(db, user.id, "roleplay");
 
   const { courseId, lessonId, blockId, profile, messages, mode } = await req.json();
+  const learner = profile == null ? null : normalizeProfile(profile);
   const block = await findBlock(courseId, lessonId, blockId);
   if (!block) return badRequest("Unknown role-play");
 
@@ -55,7 +57,7 @@ export async function POST(req: Request) {
       system: `You coach students on the supplied roleplay scenario and its learning goals. Be honest, specific and encouraging. Write in the learner's preferred language.
 
 <learner>
-${describeLearner(profile)}
+${describeLearner(learner)}
 </learner>`,
       prompt: `Scenario: ${block.scenario}
 
@@ -94,7 +96,7 @@ Rules:
 - Reveal a hidden detail only when the student asks a question that reasonably leads to it. Vague questions get vague answers.
 - Keep each reply to 1-4 sentences, like real speech.
 - If the student proposes a technical solution, react as a non-technical client would (ask what it means, or what it costs).
-- The student's preferred language is: ${profile?.language === "zh" ? "Cantonese-flavoured Traditional Chinese" : "English"}. Reply in that language.`;
+- The student's preferred language is: ${preferredLanguageName(learner)}. Reply in that language.`;
 
   return streamText({ system, contents: history, maxTokens: 1000 });
   } catch (error) { return apiError(error); }

@@ -1,5 +1,6 @@
 import {
   BACKGROUND_LABELS,
+  LANGUAGE_NAMES,
   type Background,
   type CoursePreference,
   type Experience,
@@ -114,6 +115,15 @@ export function profileToRow(profile: LearnerProfile) {
     ...(profile.background ? { background: profile.background } : {}),
     ...(profile.experience ? { experience: profile.experience } : {}),
   };
+}
+
+/**
+ * Name of the language a role-play or lab should reply in.
+ * Accepts a raw client profile, including the legacy `"zh"` code.
+ */
+export function preferredLanguageName(value: unknown): string {
+  if (value == null) return LANGUAGE_NAMES.en;
+  return LANGUAGE_NAMES[normalizeProfile(value).language];
 }
 
 export function normalizeCoursePreference(
