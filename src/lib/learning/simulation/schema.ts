@@ -113,6 +113,12 @@ export const simulationActionSchema = z.object({
   feedback: bodyText,
   /** Omit to stay in the current stage. Must point at an existing stage. */
   nextStage: identifier.optional(),
+  /**
+   * "system" actions are never offered to the learner. The server applies them
+   * after it has interpreted something the learner wrote (an interview, a brief),
+   * so a free-text step still ends in a predefined, gradeable outcome.
+   */
+  trigger: z.enum(["learner", "system"]).optional(),
 });
 export type SimulationAction = z.infer<typeof simulationActionSchema>;
 
@@ -229,7 +235,10 @@ function comparisonProblem(
  * Cross-field checks that Zod shape validation cannot express. Runs in the
  * registry's validateActivity and in the AI generation post-check.
  */
-export function simulationProblems(config: SimulationConfig): string[] {
+export function simulationProblems(
+  config: SimulationConfig,
+  options: { allowSystemActions?: boolean } = {},
+): string[] {
   const problems: string[] = [];
   const variableMap = new Map<string, SimulationVariable>();
   for (const variable of config.variables) {
@@ -278,6 +287,11 @@ export function simulationProblems(config: SimulationConfig): string[] {
     for (const action of stage.actions) {
       actionIds.push(action.id);
       const where = `Action "${action.label}"`;
+      // Lesson simulations have nothing that could apply a system action, so the
+      // learner would be stuck. Only project scenarios drive them from the server.
+      if (action.trigger === "system" && !options.allowSystemActions) {
+        problems.push(`${where} is a system action, which lesson simulations cannot use.`);
+      }
       if (action.nextStage && !stageMap.has(action.nextStage)) {
         problems.push(`${where} points at a stage that does not exist.`);
       }

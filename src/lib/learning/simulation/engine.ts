@@ -17,6 +17,11 @@ export type SimulationState = {
   status: "active" | "completed";
   outcome: SimulationOutcome | null;
   summary: string | null;
+  /**
+   * Opaque data owned by the caller (for example an interview transcript).
+   * The engine never reads it; it only carries it from one state to the next.
+   */
+  memo?: Record<string, unknown>;
 };
 
 export type SimulationChange = {
@@ -127,13 +132,21 @@ export function startSimulation(config: SimulationConfig): SimulationState {
   };
 }
 
+function isSystemAction(action: SimulationAction): boolean {
+  return action.trigger === "system";
+}
+
+/** Actions the learner may choose now. System actions are only included on request. */
 export function availableActions(
   config: SimulationConfig,
   state: SimulationState,
+  options: { includeSystem?: boolean } = {},
 ): SimulationAction[] {
   const stage = stageOf(config, state.stageId);
-  return stage.actions.filter((action) =>
-    conditionHolds(action.availableWhen, state.variables),
+  return stage.actions.filter(
+    (action) =>
+      (options.includeSystem || !isSystemAction(action)) &&
+      conditionHolds(action.availableWhen, state.variables),
   );
 }
 
@@ -189,13 +202,15 @@ export function applySimulationAction(
   config: SimulationConfig,
   state: SimulationState,
   actionId: string,
+  options: { system?: boolean } = {},
 ): { state: SimulationState; event: SimulationEvent } {
   if (state.status === "completed") {
     throw new SimulationError("This simulation is already complete.");
   }
   const stage = stageOf(config, state.stageId);
   const action = stage.actions.find((item) => item.id === actionId);
-  if (!action) {
+  // A learner request must never be able to trigger a system action.
+  if (!action || (isSystemAction(action) && !options.system)) {
     throw new SimulationError("That action is not part of this stage.");
   }
   if (!conditionHolds(action.availableWhen, state.variables)) {
@@ -244,6 +259,7 @@ export function applySimulationAction(
     status: outcome ? "completed" : "active",
     outcome,
     summary,
+    ...(state.memo ? { memo: state.memo } : {}),
   };
   const event: SimulationEvent = {
     step,
@@ -299,9 +315,7 @@ function visibleVariables(
 
 /**
  * The scene sent after each action. Rules, conditions, effects and hidden
- * variables are not in this view. Database lesson pages also omit the full
- * config from the page payload. Static courses and teacher preview still
- * include it, because those runs execute the engine in the browser.
+ * variables are not in this view.
  */
 export function simulationView(
   config: SimulationConfig,
