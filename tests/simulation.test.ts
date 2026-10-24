@@ -12,23 +12,7 @@ import {
   startSimulation,
   SimulationError,
 } from "../src/lib/learning/simulation/engine";
-import {
-  deterministicSimulationFeedback,
-  outcomeScore,
-  simulationFeedback,
-} from "../src/lib/learning/simulation/evaluate";
-import {
-  activityForTutor,
-  completionThreshold,
-  validateActivity,
-} from "../src/lib/learning/registry";
-import { seEssentials } from "../src/content/courses/se-essentials";
-import { presentationDemos } from "../src/content/courses/presentation-demos";
 import { simulationApiError } from "../src/lib/learning/simulation/http";
-import {
-  isLearnerSimulation,
-  redactCourseSimulations,
-} from "../src/lib/learning/simulation/public";
 
 const literal = {
   schemaVersion: 1 as const,
@@ -176,28 +160,8 @@ function broken(mutate: (config: SimulationConfig) => void): SimulationConfig {
   return config;
 }
 
-function activity(config: SimulationConfig) {
-  return {
-    type: "activity" as const,
-    id: "simulation-1",
-    version: 1 as const,
-    activityType: "simulation" as const,
-    config,
-  };
-}
-
-test("a complete simulation passes schema, cross-field and registry validation", () => {
-  const config = make();
-  assert.deepEqual(simulationProblems(config), []);
-  const checked = validateActivity(activity(config));
-  assert.equal(checked.success, true);
-  if (checked.success) {
-    assert.equal(completionThreshold(checked.data), 1);
-    const tutor = activityForTutor(checked.data);
-    const text = JSON.stringify(tutor);
-    assert.match(text, /A test scenario description/);
-    assert.doesNotMatch(text, /nextStage|effects|availableWhen|score/);
-  }
+test("a complete simulation passes schema and cross-field validation", () => {
+  assert.deepEqual(simulationProblems(make()), []);
 });
 
 test("invalid references, ranges and endings are rejected with useful messages", () => {
@@ -313,38 +277,26 @@ test("invalid references, ranges and endings are rejected with useful messages",
       problems.some((problem) => item.match.test(problem)),
       `${item.name}: expected ${item.match}, got ${problems.join(" | ")}`,
     );
-    assert.equal(validateActivity(activity(item.config)).success, false);
   }
 });
 
-test("unsupported operators and unknown activity types never validate", () => {
+test("unsupported operators never validate", () => {
   const badOperator = {
-    ...activity(make()),
-    config: {
-      ...make(),
-      stages: make().stages.map((stage) => ({
-        ...stage,
-        actions: stage.actions.map((action) => ({
-          ...action,
-          availableWhen: {
-            kind: "compare",
-            variable: "score",
-            op: "contains",
-            value: 2,
-          },
-        })),
+    ...make(),
+    stages: make().stages.map((stage) => ({
+      ...stage,
+      actions: stage.actions.map((action) => ({
+        ...action,
+        availableWhen: {
+          kind: "compare",
+          variable: "score",
+          op: "contains",
+          value: 2,
+        },
       })),
-    },
+    })),
   };
-  assert.equal(validateActivity(badOperator).success, false);
-  assert.equal(
-    validateActivity({ ...activity(make()), activityType: "script" }).success,
-    false,
-  );
-  assert.equal(
-    validateActivity({ ...activity(make()), activityType: "eval" }).success,
-    false,
-  );
+  assert.equal(simulationConfigSchema.safeParse(badOperator).success, false);
 });
 
 test("the engine applies effects, gates actions and reaches different endings", () => {
@@ -527,92 +479,6 @@ test("the student projection hides rules, effects and invisible variables", () =
   assert.equal(view.history.length, 1);
   assert.equal(view.history[0].actionLabel, "Improve");
   assert.equal(view.completion, null);
-});
-
-test("deterministic feedback does not depend on Gemini, and the AI path falls back", async () => {
-  const config = make();
-  const start = startSimulation(config);
-  const result = applySimulationAction(config, start, "improve");
-  const finished = applySimulationAction(config, result.state, "win");
-  const history = [result.event, finished.event];
-  const feedback = deterministicSimulationFeedback(
-    config,
-    finished.state,
-    history,
-  );
-  assert.equal(feedback.summary, "Good.");
-  assert.equal(feedback.criteria.length, config.rubric.length);
-  assert.ok(feedback.criteria.every((item) => item.assessment === "met"));
-  assert.match(feedback.criteria[0].evidence, /1\. Improve → 2\. Win/);
-
-  const previous = process.env.GEMINI_API_KEY;
-  delete process.env.GEMINI_API_KEY;
-  try {
-    assert.deepEqual(
-      await simulationFeedback(config, finished.state, history),
-      feedback,
-    );
-  } finally {
-    if (previous === undefined) delete process.env.GEMINI_API_KEY;
-    else process.env.GEMINI_API_KEY = previous;
-  }
-  assert.equal(outcomeScore("success"), 1);
-  assert.equal(outcomeScore("partial"), 0.5);
-  assert.equal(outcomeScore("failure"), null);
-});
-
-test("the software-engineering and business demos share one valid schema", () => {
-  const blocks = [
-    ...seEssentials.lessons.flatMap((lesson) => lesson.blocks),
-    ...presentationDemos.flatMap((course) =>
-      course.lessons.flatMap((lesson) => lesson.blocks),
-    ),
-  ].filter((block) => block.type === "activity" && block.activityType === "simulation");
-  assert.ok(blocks.length >= 2);
-  const domains = new Set<string>();
-  for (const block of blocks) {
-    const checked = validateActivity(block);
-    assert.equal(checked.success, true);
-    if (checked.success && checked.data.activityType === "simulation") {
-      assert.deepEqual(simulationProblems(checked.data.config), []);
-      const start = startSimulation(checked.data.config);
-      assert.ok(availableActions(checked.data.config, start).length > 0);
-      if (checked.data.config.scenario.description.includes("clinic")) {
-        domains.add("software-engineering");
-      } else {
-        domains.add("business");
-      }
-    }
-  }
-  assert.equal(domains.size, 2);
-});
-
-test("database lesson payloads omit simulation rules and endings", () => {
-  const source = seEssentials.lessons
-    .flatMap((lesson) => lesson.blocks)
-    .map((block) => validateActivity(block))
-    .find((parsed) => parsed.success && parsed.data.activityType === "simulation");
-  assert.ok(source?.success && source.data.activityType === "simulation");
-  if (!source?.success || source.data.activityType !== "simulation") return;
-  const redacted = redactCourseSimulations(seEssentials);
-  const block = redacted.lessons
-    .flatMap((lesson) => lesson.blocks)
-    .find((item) => item.id === source.data.id);
-  assert.equal(isLearnerSimulation(block), true);
-  if (!isLearnerSimulation(block)) return;
-  assert.equal(block.config.title, source.data.config.title);
-  assert.equal(block.config.completion.maxSteps, source.data.config.completion.maxSteps);
-  assert.deepEqual(block.config.scenario, source.data.config.scenario);
-  const payload = JSON.stringify(block);
-  assert.equal(payload.includes("success-ending"), false);
-  assert.equal(payload.includes("shared-view"), false);
-  assert.equal(payload.includes("\"stages\""), false);
-  assert.equal(payload.includes("\"variables\""), false);
-  assert.equal(validateActivity(block).success, false);
-  assert.equal(
-    JSON.stringify(seEssentials).includes("success-ending"),
-    true,
-  );
 });
 
 test("simulation engine errors keep their status", async () => {

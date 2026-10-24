@@ -1,131 +1,135 @@
-# DevPath (working name)
+# DevPath
 
-A GenAI-powered learning platform with interactive mini-courses across subjects. Learners set a preferred language, a general goal and a learning style; course-level experience can differ per subject. AI feedback and the tutor adapt to those preferences rather than to a computer-science background label.
+**Lead a software project with AI on your team.**
 
-This is the prototype for the week 8–9 project discussion meeting.
+DevPath is a learning platform built around immersive project simulations. The learner sits at a simulated macOS-style desktop and leads a small software project from first email to release: they interview a client, write requirements, brief an AI coding agent, review what it builds and decide how to ship. Every choice changes how the project ends, and each run finishes with a report on how the learner worked with AI, scored on the four AI Fluency competencies.
 
-## What works now
+COMP5241 group project, The Hong Kong Polytechnic University.
 
-| Area | Status |
+## How a project works
+
+Every project runs on the same desktop with six apps. The client, the problem and the stakes change from project to project; the workflow stays the same.
+
+| App | What the learner does |
 |---|---|
-| Learner preferences (name, language, goal, learning style) | ✅ saved locally, synced to Supabase when signed in |
-| Course-level experience and goal | ✅ optional per-course preference, stored separately |
-| 2 courses, 6 lessons | ✅ `src/content/courses/` |
-| Quiz, ordering, code-review bug hunt | ✅ |
-| AI tutor side panel (knows the lesson, adapts to the profile) | ✅ `/api/tutor` (streaming) |
-| Guided response and conversation activities with rubric feedback | ✅ `/api/activities` |
-| Declarative simulations (AI-designed or hand-written) | ✅ stateful branching with server-owned state, rubric feedback and two cross-domain demos |
-| Teacher workspace: course editor, AI builder, students and invitations | ✅ `/teach` (instructor role required) |
-| Personal courses for learners | ✅ `/my-courses` |
-| Progress dashboard | ✅ `/dashboard` |
-| Magic-link sign-in (Supabase) | ✅ only when Supabase env vars are set |
+| Mail | Reads the brief: the client's request, a ticket from the users and a note from the manager. Makes the first move. |
+| Meet | Interviews the client, who only reveals what the learner asks about. |
+| Notes | Writes the requirements, including how everyone will know the work succeeded. |
+| Cody | Briefs the AI coding agent, which builds exactly what the brief says, gaps and all. |
+| Review | Reviews a pull request (tech lead) or a walkthrough (product lead), and approves it or sends it back with a reason. |
+| Launch | Chooses how to release, then sees the outcome. |
 
-AI tutor, course builder and AI activity feedback require a signed-in account. The shared hourly quota is checked in Postgres. Deterministic activities in the static catalogue can be practised as a guest; those results are not saved.
+The run ends with a project report: the outcome (success, partly there or it went wrong) and four cards, one per AI Fluency competency (Delegation, Description, Discernment, Diligence), each built from evidence in what the learner actually did.
+
+## Design: a written story, with AI only where it counts
+
+Fully AI-driven role-play drifts, costs tokens on every turn and can't be graded consistently. Fully scripted simulations can't react to what the learner writes. DevPath splits the difference:
+
+- **The story is the skeleton.** Each project is authored data: facts the client knows, requirement and brief checklists, several versions of the agent's code, and endings. A deterministic state machine moves through it, so every learner faces the same situation and every run can be compared.
+- **AI only at judgement nodes.** The client interview, the requirements and the brief are free text. An evaluator maps that text onto predefined outcomes (which fact the client reveals, which requirements are covered, which version of the code Cody writes), so AI output can never push the story off the script.
+- **Who is AI and who is scripted.** The client and Cody respond to what the learner writes, so AI plays them. The manager and the users only react to decisions, so the script handles them.
+- **Server-authoritative.** The browser sends one move at a time. The server applies it, saves the run and returns a view that never includes hidden facts, other code versions or the rules.
+
+### Current status
+
+| Area | State |
+|---|---|
+| Harbour Clinic booking board (two tracks, four code versions, several endings) | Done |
+| macOS-style desktop, public home page and projects page | Done |
+| Saved runs, restart, sign-in with GitHub or a magic link | Done |
+| Evaluator for free text | Offline keyword evaluator. A Gemini evaluator (with the offline one as fallback) is next. |
+| Teacher view of class results (read-only) | Planned |
 
 ## Tech stack
 
-- Next.js 15 (App Router) + TypeScript + Tailwind CSS 4
-- Supabase (Auth + Postgres with row-level security)
-- Google Gemini API via `@google/genai` (model set by `GEMINI_MODEL`, default `gemini-3.5-flash-lite`), called only from server routes so the key never reaches the browser
-- Deploy target: Vercel
+- Next.js 15 (App Router), TypeScript, Tailwind CSS 4
+- Supabase: Auth (GitHub OAuth and magic link) and Postgres with row-level security
+- Google Gemini via `@google/genai`, server-side only (`src/lib/ai`, ready for the AI evaluator)
+- zod for scenario and request validation
+- Vercel for hosting
 
-## Local setup
+## Architecture
 
-```bash
-npm install
-cp .env.example .env.local   # then fill in the values
-npm run dev                  # http://localhost:3000
+```
+Browser (desktop UI)                Server                              Supabase
+────────────────────                ──────                              ────────
+POST /api/projects/[id]   ─────▶   route.ts: check sign-in, load run
+{ op: "ask", question }            runtime.ts: apply the move
+                                     ├─ evaluate.ts: free text → outcome
+                                     └─ engine.ts: state machine step
+                                   save with optimistic locking ─────▶  simulation_sessions
+                          ◀─────   projectView(): public view only
 ```
 
-`GEMINI_API_KEY` is required for the AI features. Without Supabase variables the app still runs and stores progress in the browser.
-
-### Fresh Supabase project
-
-1. Create a project at supabase.com.
-2. In the SQL editor, run every file in `supabase/migrations` in this order:
-   - `0001_init.sql`
-   - `20261022050613_general_learning_platform.sql`
-   - `20261022180000_review_fixes.sql`
-   - `20261022203000_quota_params_and_owner_read.sql`
-   - `20261022235900_learning_preferences.sql`
-   - `20261023090000_simulation_sessions.sql`
-3. Copy the project URL, the anon key and the service role key into `.env.local`:
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - `SUPABASE_SERVICE_ROLE_KEY` (server only; never prefix it with `NEXT_PUBLIC_`)
-4. Under Authentication → URL Configuration, add `http://localhost:3000/auth/callback` and each deployed origin plus `/auth/callback` to the redirect allow list.
-5. Sign up, then grant the instructor role in the SQL editor. The app cannot assign this role itself:
-
-```sql
-update public.profiles set role = 'instructor' where id = '<user-uuid>';
-```
-
-AI features (tutor, course builder and AI activity feedback) require that sign-in. Without the service role key, lesson completion and saved attempts are not recorded.
-
-### Deploy to Vercel
-
-Import the GitHub repo in Vercel and add the same environment variables in Project Settings → Environment Variables.
+- `src/lib/projects/catalog.ts` holds the public listing for each project. It is the only scenario file client components may import.
+- Each scenario module (for example `harbour-clinic.ts`) holds the full script and is parsed with zod when it loads.
+- `src/lib/learning/simulation/` is the generic state machine. Scenario-only steps are marked `trigger: "system"`, so the browser cannot choose them directly.
 
 ## Project structure
 
 ```
 src/
   app/
-    (learn)/           learner shell: courses, my-courses, dashboard, auth
-    (teach)/teach/     instructor workspace: dashboard, courses, students, invitations
-    studio/            compatibility redirect into the teaching workspace
-    api/tutor          AI tutor (streams text)
-    api/activities     activity submission, deterministic + AI evaluation, attempts
-    api/courses        course CRUD with ownership and publication checks
-    api/builder        outline, lesson and simulation design generation
-    api/simulations    server-authoritative simulation start/choose/restart
-    api/enrolments     invitation claiming and enrolment
-  components/          UI; components/learning = activity views and studio panels
-  content/courses/     static catalogue and the shared authoring helpers
+    (learn)/                 public pages: home, /projects, sign-in, auth callback
+    (sim)/projects/[id]/     the full-screen desktop for one project
+    api/projects/[id]/       start a run and apply each move
+  components/
+    home/                    light-band background, glass cards, scroll reveal
+    projects/desktop/        desktop shell, windows, Dock, overlays and the six apps
+    NavBar.tsx
   lib/
-    ai/gemini.ts       Gemini client, learner description, streaming + JSON helpers
-    learning/registry.ts  activity schemas, defaults, editors, renderers, evaluators
-    learning/simulation/  declarative DSL, validation, server engine, feedback
-    learning/studio/   course editor state hook and panels
-    types.ts           shared read/catalogue types
-supabase/migrations/   database schema
+    projects/                scenario types, scenarios, runtime and evaluator
+    learning/simulation/     generic state machine and schema
+    ai/                      Gemini client and hourly AI quota
+    supabase/                browser and server clients, API error mapping
+    auth-store.tsx           signed-in user for client components
+docs/scenarios/              scenario scripts
+supabase/migrations/         database schema
+tests/                       unit tests
 ```
 
-## Adding a lesson
+## Local setup
 
-Lessons contain ordered activities defined by the registry in
-`src/lib/learning/registry.ts`. Each activity is validated, editable and rendered
-through the same definition. Static courses use the helpers in
-`src/content/courses/authoring.ts` (`reading`, `choice`, `quiz`, `ordering`,
-`codeReview`, `response`, `conversation`, `simulation`); the same envelope is what the course
-builder stores in the database. To add a new activity type, add its schema,
-defaults, editor/renderer and optional evaluator to the registry.
+```bash
+npm install
+cp .env.example .env.local
+npm run dev
+```
 
-### Simulations
+Fill in `.env.local` before signing in:
 
-A `simulation` activity is a Zod-validated declarative scenario: bounded state
-variables, stages, actions with availability conditions, effects, an optional
-next stage, completion rules and a rubric. The server owns the state for saved
-courses, and those lesson pages include only the title, scenario and step limit.
-Clients send only an action id. Static courses and teacher preview still run the
-same engine in the browser. There is no generated JavaScript, expression
-evaluator, `eval` or external call. AI can design the structure in the course
-studio, but the teacher reviews it, and the deterministic engine works without AI.
+| Variable | Needed for |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Sign-in |
+| `SUPABASE_SERVICE_ROLE_KEY` | Saving project runs (server only, never prefix it with `NEXT_PUBLIC_`) |
+| `GEMINI_API_KEY`, `GEMINI_MODEL` | The AI evaluator, once it lands |
 
-See the architecture document for the DSL and the two demo scenarios
-(requirement prioritisation and supplier negotiation).
+### Supabase
 
-## Teaching workspace and course studio
+1. Create a project at supabase.com.
+2. Run every file in `supabase/migrations` in filename order in the SQL editor.
+3. Under Authentication → URL Configuration, add `http://localhost:3000/auth/callback` and each deployed origin plus `/auth/callback` to the redirect allow list.
+4. To enable GitHub sign-in, create a GitHub OAuth app with the callback URL Supabase shows under Authentication → Providers → GitHub, and paste its client ID and secret there.
 
-The instructor workspace lives at `/teach` and requires the instructor role.
-A course opens at `/teach/courses/[id]` with Overview, Curriculum, Students,
-Preview and Settings tabs; the AI builder and manual editor share the Curriculum
-tab. Learners can still create and edit personal courses at `/my-courses` using
-the same editor component. `/studio` is a compatibility redirect for old links.
+The migrations also contain the tables of the earlier course platform. The app no longer uses them; they are kept so existing data is not dropped.
 
-The editor is split into a state hook (`lib/learning/studio/useCourseStudio.ts`)
-and focused panels (`components/learning/studio/`), so curriculum editing, AI
-generation and publishing can evolve independently. Software engineering remains
-an example teaching domain, not a requirement of the platform model.
+### Deploying
 
-See [architecture, migration, permissions, limits and demo instructions](docs/GENERAL_LEARNING_PLATFORM.md).
+Vercel deploys `main` automatically. Add the same environment variables under Project Settings → Environment Variables.
+
+## Adding a project
+
+1. Write the script in `docs/scenarios/`: facts, requirements, brief constraints, code versions and endings.
+2. Add a public listing to `src/lib/projects/catalog.ts`. The home page and `/projects` pick it up automatically.
+3. Add the scenario module under `src/lib/projects/` and register it in `src/lib/projects/index.ts`.
+4. Add tests in `tests/projects.test.ts` that reach each ending.
+
+## Scripts
+
+| Command | What it does |
+|---|---|
+| `npm run dev` | Start the dev server |
+| `npm test` | Unit tests |
+| `npm run typecheck` | TypeScript |
+| `npm run lint` | ESLint |
+| `npm run test:postgres` | Apply the migrations to a local Postgres and check the policies |
