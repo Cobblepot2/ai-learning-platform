@@ -43,6 +43,12 @@ test("database enforces role, ownership, enrolment, publication and evidence bou
     ),
   );
   await db.exec(
+    readFileSync(
+      "supabase/migrations/20261023090000_simulation_sessions.sql",
+      "utf8",
+    ),
+  );
+  await db.exec(
     `insert into auth.users values ('${teacher}','teacher@example.test',now()),('${student}','student@example.test',now()),('${outsider}','outsider@example.test',now()),('${otherTeacher}','other@example.test',now()); update public.profiles set role='instructor' where id in ('${teacher}','${otherTeacher}');`,
   );
   async function as(id: string, sql: string) {
@@ -287,6 +293,45 @@ test("database enforces role, ownership, enrolment, publication and evidence bou
     (await as(otherTeacher, "select * from public.learning_attempts"))[0].rows
       .length,
     0,
+  );
+  await db.exec(
+    `insert into public.simulation_sessions(id,user_id,course_id,lesson_id,activity_id,activity_snapshot,state,version) values('20000000-0000-4000-8000-000000000001','${student}','${course}','l','a','{}','{"stageId":"start","step":0,"variables":{}}',1)`,
+  );
+  assert.equal(
+    (await as(student, "select * from public.simulation_sessions"))[0].rows
+      .length,
+    1,
+  );
+  assert.equal(
+    (await as(outsider, "select * from public.simulation_sessions"))[0].rows
+      .length,
+    0,
+  );
+  assert.equal(
+    (await as(teacher, "select * from public.simulation_sessions"))[0].rows
+      .length,
+    0,
+  );
+  await assert.rejects(
+    as(
+      student,
+      `insert into public.simulation_sessions(id,user_id,course_id,lesson_id,activity_id,activity_snapshot,state,version) values('20000000-0000-4000-8000-000000000002',auth.uid(),'${course}','l','b','{}','{}',1)`,
+    ),
+    /permission/,
+  );
+  await assert.rejects(
+    as(
+      student,
+      `update public.simulation_sessions set state='{"forged":true}' where user_id=auth.uid()`,
+    ),
+    /permission/,
+  );
+  await assert.rejects(
+    as(
+      student,
+      "delete from public.simulation_sessions where user_id=auth.uid()",
+    ),
+    /permission/,
   );
   await as(
     teacher,

@@ -1,9 +1,8 @@
 @import "tailwindcss";
-@plugin "@tailwindcss/typography";
 
 :root {
-  --background: #fafaf9;
-  --foreground: #1c1917;
+  --background: #000000;
+  --foreground: #fafafa;
 }
 
 @theme inline {
@@ -18,7 +17,12 @@ body {
   color: var(--foreground);
 }
 
-.prose table {
-  display: block;
-  overflow-x: auto;
+/*
+ * Public pages: always reserve the scrollbar's space, so moving between a long
+ * page and a short one (home to sign-in) does not shift the layout sideways.
+ * Scoped with :has so the full-screen desktop does not get an empty gutter.
+ */
+html:has(.public-shell) {
+  scrollbar-gutter: stable;
+  color-scheme: dark;
 }

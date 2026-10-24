@@ -25,34 +25,24 @@ export default function AuthCallbackPage() {
     // The browser client exchanges the ?code= itself while it initialises, and
     // getSession() waits for that. Exchanging the code again here would fail
     // because the PKCE verifier has already been used.
-    supabase.auth.getSession().then(async ({ data }) => {
-      // Full reload so the learner store picks up the new session and remote progress.
+    supabase.auth.getSession().then(({ data }) => {
       if (!data.session) {
         setError(
           "This sign-in link has expired or was opened in a different browser. Please sign in again.",
         );
         return;
       }
-      let destination = "/";
-      try {
-        const res = await fetch("/api/me", { cache: "no-store" });
-        if (res.ok) {
-          const account = await res.json();
-          if (account?.isTeacher) destination = "/teach";
-        }
-      } catch {
-        // Fall back to the learner home if role lookup is unavailable.
-      }
-      window.location.replace(destination);
+      // Full reload so the auth provider starts from the new session.
+      window.location.replace("/");
     });
   }, [router]);
 
   return (
-    <div className="mx-auto max-w-md px-4 py-16 text-center text-stone-600">
+    <div className="mx-auto max-w-md px-4 py-16 text-center text-white/70">
       {error ? (
         <>
-          <p className="text-rose-600">Sign-in failed: {error}</p>
-          <Link href="/login" className="mt-4 inline-block font-medium text-indigo-600 underline">
+          <p className="text-rose-300">Sign-in failed: {error}</p>
+          <Link href="/login" className="mt-4 inline-block font-medium text-cyan-300 underline">
             Back to sign in
           </Link>
         </>

@@ -8,9 +8,6 @@ import { HttpError } from "@/lib/supabase/server";
  * database function is missing, so a single instance cannot be driven without
  * a limit. `consume_ai_quota` is the shared quota. A request must pass both.
  * The RPC argument is `p_bucket` so it does not clash with `ai_usage.bucket`.
- *
- * Course generation stays available to any signed-in user (students build
- * private courses) and is limited here rather than closed to teachers.
  */
 export const AI_QUOTA = {
   generation: 12,
