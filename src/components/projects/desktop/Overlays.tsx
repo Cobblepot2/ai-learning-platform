@@ -78,7 +78,7 @@ const RATING: Record<string, string> = {
   weak: "bg-rose-100 text-rose-800",
 };
 
-/** End-of-project report: outcome, the concepts the job taught, and the four AI Fluency cards. */
+/** End-of-project report: outcome, the four AI Fluency cards, and the concepts the job taught. */
 export function Report({ view, busy, onClose, onRestart, exit }: { view: ProjectView; busy: boolean; onClose: () => void; onRestart: () => void; exit: { href: string; label: string } }) {
   const completion = view.completion;
   if (!completion) return null;
@@ -117,6 +117,22 @@ export function Report({ view, busy, onClose, onRestart, exit }: { view: Project
             </ul>
           </div>
         </div>
+        <div className="border-t border-black/10 px-6 py-5">
+          <h2 className="text-[15px] font-semibold text-stone-900">How you worked with AI</h2>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            {completion.cards.map((card) => (
+              <div key={card.competency} className="rounded-xl border border-black/10 bg-white p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-semibold text-stone-900">{card.title}</p>
+                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${RATING[card.rating]}`}>{card.rating}</span>
+                </div>
+                <ul className="mt-2 list-disc space-y-1 pl-4 text-[13px] text-stone-700">
+                  {card.evidence.map((line, index) => <li key={index}>{line}</li>)}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
         {completion.concepts.length > 0 && (
           <div className="border-t border-black/10 px-6 py-5">
             <h2 className="text-[15px] font-semibold text-stone-900">The ideas this job depended on</h2>
@@ -147,22 +163,6 @@ export function Report({ view, busy, onClose, onRestart, exit }: { view: Project
             </div>
           </div>
         )}
-        <div className="border-t border-black/10 px-6 py-5">
-          <h2 className="text-[15px] font-semibold text-stone-900">How you worked with AI</h2>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            {completion.cards.map((card) => (
-              <div key={card.competency} className="rounded-xl border border-black/10 bg-white p-4">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="font-semibold text-stone-900">{card.title}</p>
-                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${RATING[card.rating]}`}>{card.rating}</span>
-                </div>
-                <ul className="mt-2 list-disc space-y-1 pl-4 text-[13px] text-stone-700">
-                  {card.evidence.map((line, index) => <li key={index}>{line}</li>)}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </div>
         <div className="flex flex-wrap justify-end gap-2 border-t border-black/10 px-6 py-4">
           <a href={exit.href} className="rounded-md border border-black/15 bg-white px-3 py-1.5 text-[13px] font-medium text-stone-800">{exit.label}</a>
           <button type="button" onClick={onClose} className="rounded-md border border-black/15 bg-white px-3 py-1.5 text-[13px] font-medium text-stone-800">Look around</button>
