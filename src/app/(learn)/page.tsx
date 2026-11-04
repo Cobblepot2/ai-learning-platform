@@ -312,10 +312,17 @@ export default function Home() {
       <section className={`${column} pb-24 pt-10 text-center`}>
         <Reveal>
           <h2 className="text-balance text-3xl font-bold tracking-tight sm:text-5xl">Ready for your first client?</h2>
-          <p className="mt-4 text-lg text-white/65">Your progress is saved as you go, so you can stop and pick up later.</p>
-          <Link href="/projects" className={`${primary} mt-8`}>
-            Browse projects
-          </Link>
+          <p className="mx-auto mt-4 max-w-2xl text-lg text-white/65">
+            Start with one of the software engineering projects, or have one written for your subject and level. Your progress is saved as you go.
+          </p>
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <Link href="/projects" className={primary}>
+              Browse projects
+            </Link>
+            <Link href="/projects/new" className={secondary}>
+              Create a project
+            </Link>
+          </div>
         </Reveal>
       </section>
 
