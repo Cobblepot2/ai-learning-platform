@@ -56,6 +56,26 @@ const PRINCIPLES = [
   { title: "Consequences, not quizzes", text: "There are no right-answer buttons. What you miss or wave through shows up later, in the code, the release and the report." },
 ];
 
+// How a job teaches its subject: the AI teammate's mistakes are the lesson.
+const IDEAS = [
+  { step: "01", title: "Two ideas in every job", text: "Each project rests on two concepts of its subject, such as race conditions or regression testing. Cody gets them wrong the way beginners do." },
+  { step: "02", title: "Catch it, then explain it", text: "Send the work back and say what goes wrong and why. Your note is graded on both, so naming the symptom isn't enough." },
+  { step: "03", title: "The report explains it", text: "After the release you see what each idea means, an analogy, the classic mistake, and what happened to it in your run." },
+];
+
+// Ways in for different learners.
+const FOR_YOU = [
+  { title: "Two roles in one project", text: "As product lead you review how the software behaves; no coding needed. As tech lead you review Cody's pull request line by line." },
+  { title: "A project for your subject", text: "Say who you are, what you want to learn and how much you know. The AI writes a job in your world, and checks it plays fairly before you start." },
+  { title: "A learning path", text: "Three projects on one subject, two new ideas in each, from your level up. Each opens when you finish the one before." },
+];
+
+const TEACHERS = [
+  { title: "Classes with a code", text: "Students join with a six-character code and see the projects you assign." },
+  { title: "Follow every student", text: "Where each one is, how their run ended, which ideas they caught and what their notes said." },
+  { title: "Projects from your material", text: "Paste your notes and the AI builds a job around their ideas. Customise an existing project, or edit the words yourself." },
+];
+
 // A shared minimum width keeps the hero buttons the same size, whichever label is longer.
 const pill = "inline-flex min-w-52 items-center justify-center rounded-full px-7 py-3 text-[15px] font-medium transition duration-300";
 const primary = `${pill} bg-white text-black hover:bg-white/85`;
@@ -78,7 +98,7 @@ export default function Home() {
         </Reveal>
         <Reveal delay={200}>
           <p className="mx-auto mt-6 max-w-2xl text-pretty text-lg leading-relaxed text-white/75 sm:text-xl">
-            Step into a simulated workday. Interview a client, brief an AI coding agent, review what it builds and decide when to ship. Every choice changes how the project ends.
+            Step into a simulated workday. Interview a client, brief an AI coding agent, review what it builds and decide when to ship. Every choice changes how the project ends, and the report explains the ideas behind it.
           </p>
         </Reveal>
         <Reveal delay={300}>
@@ -118,7 +138,7 @@ export default function Home() {
       <section id="how" className={`${column} scroll-mt-32 py-20`}>
         <Reveal>
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-300/80">How it works</p>
-          <h2 className="mt-3 text-balance text-3xl font-bold tracking-tight sm:text-5xl">One desktop, seven tools.</h2>
+          <h2 className="mt-3 text-balance text-3xl font-bold tracking-tight sm:text-5xl">One desktop, six tools.</h2>
           <p className="mt-4 max-w-2xl text-lg text-white/65">Each project brings a new client and a new problem. The tools, and the habits they build, stay the same.</p>
         </Reveal>
         <ol className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -170,6 +190,45 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Concepts */}
+      <section id="ideas" className={`${column} scroll-mt-32 py-20`}>
+        <Reveal>
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-teal-300/80">Learn by catching mistakes</p>
+          <h2 className="mt-3 text-balance text-3xl font-bold tracking-tight sm:text-5xl">The ideas behind the job.</h2>
+          <p className="mt-4 max-w-2xl text-lg text-white/65">
+            Cody is fast and confident, and gets the subject&apos;s key ideas wrong in the classic ways. Spotting why is how you learn them.
+          </p>
+        </Reveal>
+        <ol className="mt-12 grid gap-5 md:grid-cols-3">
+          {IDEAS.map((item, index) => (
+            <li key={item.step}>
+              <SpotlightCard delay={index * 100} className="h-full p-7">
+                <span className="font-mono text-sm text-white/35">{item.step}</span>
+                <h3 className="mt-3 text-xl font-semibold">{item.title}</h3>
+                <p className="mt-3 leading-relaxed text-white/65">{item.text}</p>
+              </SpotlightCard>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      {/* Personalisation */}
+      <section className={`${column} py-20`}>
+        <Reveal>
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-300/80">Made for you</p>
+          <h2 className="mt-3 text-balance text-3xl font-bold tracking-tight sm:text-5xl">Start where you are.</h2>
+          <p className="mt-4 max-w-2xl text-lg text-white/65">Whether you&apos;ve never written code or you&apos;re heading into an engineering job, there&apos;s a way in at your level.</p>
+        </Reveal>
+        <div className="mt-12 grid gap-5 md:grid-cols-3">
+          {FOR_YOU.map((item, index) => (
+            <SpotlightCard key={item.title} delay={index * 100} className="h-full p-7">
+              <h3 className="text-xl font-semibold">{item.title}</h3>
+              <p className="mt-3 leading-relaxed text-white/65">{item.text}</p>
+            </SpotlightCard>
+          ))}
+        </div>
+      </section>
+
       {/* How it's built */}
       <section className={`${column} py-20`}>
         <Reveal>
@@ -192,7 +251,7 @@ export default function Home() {
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-300/80">Every choice counts</p>
           <h2 className="mt-3 text-balance text-3xl font-bold tracking-tight sm:text-5xl">See how you worked with AI.</h2>
           <p className="mt-4 max-w-2xl text-lg text-white/65">
-            Skip a question and Cody builds the wrong thing. Approve too quickly and the problem ships. At the end you get a report based on what you actually did, scored on the four AI Fluency competencies.
+            Skip a question and Cody builds the wrong thing. Approve too quickly and the problem ships. At the end you get a report based on what you actually did: the four AI Fluency competencies, then the ideas the job depended on.
           </p>
         </Reveal>
         <ul className="mt-10 grid gap-5 md:grid-cols-3">
@@ -219,7 +278,34 @@ export default function Home() {
               </div>
             ))}
           </div>
+          <p className="mt-8 text-xl font-semibold">The ideas this job depended on</p>
+          <div className="mt-4 rounded-2xl border border-teal-300/20 bg-teal-400/[0.06] p-4">
+            <div className="flex items-center justify-between gap-2">
+              <p className="font-semibold">Race conditions</p>
+              <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${RATING.strong}`}>Caught</span>
+            </div>
+            <p className="mt-2 text-sm text-white/60">
+              Two people act on the same thing at almost the same moment, and the result depends on who gets there first. Like two ticket windows selling the last seat on a bus.
+            </p>
+            <p className="mt-2 text-sm text-white/60"><span className="text-white/80">Your note:</span> said what goes wrong and why.</p>
+          </div>
         </Reveal>
+      </section>
+
+      {/* Instructors */}
+      <section className={`${column} py-20`}>
+        <Reveal>
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-amber-300/80">For instructors</p>
+          <h2 className="mt-3 text-balance text-3xl font-bold tracking-tight sm:text-5xl">Bring your class.</h2>
+        </Reveal>
+        <div className="mt-12 grid gap-5 md:grid-cols-3">
+          {TEACHERS.map((item, index) => (
+            <SpotlightCard key={item.title} delay={index * 100} className="h-full p-7">
+              <h3 className="text-xl font-semibold">{item.title}</h3>
+              <p className="mt-3 leading-relaxed text-white/65">{item.text}</p>
+            </SpotlightCard>
+          ))}
+        </div>
       </section>
 
       {/* Closing call to action */}
