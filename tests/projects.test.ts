@@ -256,7 +256,7 @@ test("the report says, for each concept, whether it was found, prevented, caught
   assert.deepEqual(concepts.map((item) => [item.outcome, item.rating]), [["shipped", "weak"], ["prevented", "strong"]]);
 });
 
-test("a note that only says what to change gets pointed to the Handbook", async () => {
+test("a note that only says what to change gets pointed to the report", async () => {
   const run = await throughInterview("pick-product");
   let state = run.state;
   state = track(run.history, await submitRequirements(scenario, state, GOOD_REQUIREMENTS, offlineEvaluator));
@@ -265,7 +265,7 @@ test("a note that only says what to change gets pointed to the Handbook", async 
   state = track(run.history, await sendBack(scenario, state, { reasonId: "double-booking", explanation: "Please fix the booking logic." }, offlineEvaluator));
   const review = projectView(scenario, state, run.history).work!.reviews[0];
   assert.equal(review.explained?.rating, "weak");
-  assert.match(review.explained?.feedback ?? "", /Handbook/);
+  assert.match(review.explained?.feedback ?? "", /the report explains it/);
 });
 
 test("the learner view never exposes variants, checklists or hidden facts before the end", async () => {

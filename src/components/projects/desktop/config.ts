@@ -1,6 +1,6 @@
 import type { ProjectView } from "@/lib/projects/runtime";
 
-export type AppId = "mail" | "call" | "notes" | "handbook" | "cody" | "review" | "launch";
+export type AppId = "mail" | "call" | "notes" | "cody" | "review" | "launch";
 
 export type Op =
   | { op: "start" }
@@ -18,18 +18,13 @@ const APP_NAMES: Record<AppId, string> = {
   mail: "Mail",
   call: "Meet",
   notes: "Notes",
-  handbook: "Handbook",
   cody: "Cody",
   review: "Review",
   launch: "Launch",
 };
 
-export const DOCK: AppId[] = ["mail", "call", "notes", "handbook", "cody", "review", "launch"];
+export const DOCK: AppId[] = ["mail", "call", "notes", "cody", "review", "launch"];
 
-/** The apps this project shows: the Handbook only when it has notes. */
-export function dockFor(view: ProjectView): AppId[] {
-  return DOCK.filter((app) => app !== "handbook" || view.handbook.total > 0);
-}
 
 /** First name, for friendly wording: "Grace Wong" → "Grace". */
 export function firstName(name: string) {
@@ -59,8 +54,6 @@ export function appTitle(app: AppId, view: ProjectView): string {
       return `Meet — ${client.name}`;
     case "notes":
       return "Notes — Requirements";
-    case "handbook":
-      return "Handbook — Ideas this job depends on";
     case "cody":
       return `${assistant.name} — ${assistant.kind}`;
     case "review":
@@ -176,7 +169,7 @@ export function guideFor(view: ProjectView): string[] {
       return product
         ? [
             `Watch ${agent}'s walkthrough in Review as if you were ${client}.`,
-            ...(view.handbook.total ? ["The Handbook explains the ideas this job depends on. Check the work against them, and when you send it back, say why it goes wrong."] : []),
+            ...(view.conceptCount ? ["When you send it back, say what goes wrong and why it happens. The report names the ideas behind it at the end."] : []),
             "If something would hurt the client, send it back with the reason. A wrong reason costs a day.",
             "Approve when you're satisfied.",
           ]

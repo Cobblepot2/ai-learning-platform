@@ -86,8 +86,8 @@ export type CastMember = {
 };
 
 /**
- * A Handbook entry on a concept the job depends on. It unlocks when the learner
- * uncovers its fact, and in any case before the review.
+ * A concept the job depends on, explained in the report. It counts as found when the learner
+ * uncovers its fact on the call.
  */
 export type ProjectConcept = {
   id: string;
@@ -127,7 +127,7 @@ export type ProjectScenario = {
     /** The learner's manager, as named in their email. */
     manager: string;
   };
-  /** Handbook entries. A project without any shows no Handbook. */
+  /** The concepts the job teaches, named and explained in the report. */
   concepts?: ProjectConcept[];
   /** Mails after the first move. Generic wording is used when a scenario has none. */
   followUps?: { call: FollowUp; delegate: FollowUp; delegateCall: FollowUp; quote: FollowUp };

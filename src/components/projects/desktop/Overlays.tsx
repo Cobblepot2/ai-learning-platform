@@ -127,11 +127,14 @@ export function Report({ view, busy, onClose, onRestart, exit }: { view: Project
                     <p className="font-semibold text-stone-900">{concept.name}</p>
                     <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${RATING[concept.rating]}`}>{CONCEPT_OUTCOME[concept.outcome]}</span>
                   </div>
-                  <ul className="mt-2 list-disc space-y-1 pl-4 text-stone-700">
+                  <p className="mt-2 text-stone-800">{concept.explanation}</p>
+                  <p className="mt-2 text-stone-600"><span className="font-medium text-stone-800">Think of it like this:</span> {concept.bridge}</p>
+                  <p className="mt-2 text-stone-600"><span className="font-medium text-stone-800">The classic mistake:</span> {concept.misconception}</p>
+                  <p className="mt-3 text-[11px] font-semibold uppercase tracking-wide text-stone-500">In your run</p>
+                  <ul className="mt-1 list-disc space-y-1 pl-4 text-stone-700">
                     <li>{concept.found ? "You found it on the call." : "It didn't come up on the call."}</li>
                     <li>{concept.summary}</li>
                   </ul>
-                  <p className="mt-2 text-stone-600"><span className="font-medium text-stone-800">The classic mistake:</span> {concept.misconception}</p>
                   {concept.note && (
                     <div className="mt-3 rounded-lg border border-black/10 bg-white p-3">
                       <p className="text-[11px] font-semibold uppercase tracking-wide text-stone-500">Your note</p>

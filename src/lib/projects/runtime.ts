@@ -349,9 +349,9 @@ function explanationFeedback(scenario: ProjectScenario, concept: ProjectConcept,
   const why = covered.includes("why");
   const idea = concept.name.toLowerCase();
   if (what && why) return { rating: "strong" as const, text: `You said what goes wrong and why: that's ${idea}. ${agent} knows why it was wrong, not just what to change.` };
-  if (what) return { rating: "mixed" as const, text: `You said what goes wrong, but not why it happens. The idea behind it is ${idea}: it's in the Handbook.` };
+  if (what) return { rating: "mixed" as const, text: `You said what goes wrong, but not why it happens. The idea behind it is ${idea}: the report explains it at the end.` };
   if (why) return { rating: "mixed" as const, text: `You explained why it happens (${idea}), but not what it breaks in this job.` };
-  return { rating: "weak" as const, text: `Your note didn't say why it was wrong. The idea behind it is ${concept.name.toLowerCase()}: it's in the Handbook.` };
+  return { rating: "weak" as const, text: `Your note didn't say why it was wrong. The idea behind it is ${idea}: the report explains it at the end.` };
 }
 
 // ---------------------------------------------------------------------------
@@ -388,8 +388,8 @@ export type ProjectView = {
     max: number;
   };
   notes: string[];
-  /** Handbook entries unlocked so far. Each unlocks with its fact, and all of them by the review. */
-  handbook: { entries: Omit<ProjectConcept, "fact" | "variant" | "cues">[]; total: number };
+  /** How many concepts the job teaches. They are named and explained in the report, after the release. */
+  conceptCount: number;
   requirements: { text: string; coveredCount: number; total: number } | null;
   brief: { text: string } | null;
   work: {
@@ -559,6 +559,9 @@ export type ConceptResult = {
   rating: ProjectCard["rating"];
   summary: string;
   misconception: string;
+  /** What the idea means, and an analogy, shown in the report. */
+  explanation: string;
+  bridge: string;
   note?: { text: string; rating: ProjectCard["rating"]; feedback: string };
 };
 
@@ -572,7 +575,7 @@ export function conceptResults(scenario: ProjectScenario, state: SimulationState
     const explanation = memo.reviews.find((item) => item.explanation?.concept === concept.id)?.explanation;
     const feedback = explanation ? explanationFeedback(scenario, concept, explanation.covered) : null;
     const note = explanation && feedback ? { text: explanation.text, rating: feedback.rating, feedback: feedback.text } : undefined;
-    const base = { name: concept.name, found, misconception: concept.misconception };
+    const base = { name: concept.name, found, misconception: concept.misconception, explanation: concept.explanation, bridge: concept.bridge };
 
     if (!memo.brief) {
       return { ...base, outcome: "not-reached", rating: "weak", summary: "The job ended before the work got this far." };
@@ -670,19 +673,7 @@ export function projectView(
     notes: scenario.facts
       .filter((fact) => memo.interview.revealed.includes(fact.id))
       .map((fact) => fact.text),
-    handbook: {
-      entries: (scenario.concepts ?? [])
-        .filter((concept) => SHOWN_FROM_REVIEW.has(state.stageId) || state.status === "completed" || memo.interview.revealed.includes(concept.fact))
-        .map((concept) => ({
-          id: concept.id,
-          name: concept.name,
-          explanation: concept.explanation,
-          bridge: concept.bridge,
-          misconception: concept.misconception,
-          inTheJob: concept.inTheJob,
-        })),
-      total: scenario.concepts?.length ?? 0,
-    },
+    conceptCount: scenario.concepts?.length ?? 0,
     // Which points were covered stays hidden until the debrief, so the brief and
     // review still test the learner's own judgement.
     requirements: memo.requirements

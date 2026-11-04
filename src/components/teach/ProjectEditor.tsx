@@ -86,7 +86,7 @@ export function ProjectEditor({ projectId, initial }: { projectId: string; initi
 
       {edits.concepts && (
         <section className="space-y-4">
-          <h2 className="text-xl font-semibold">Handbook concepts</h2>
+          <h2 className="text-xl font-semibold">Concepts <span className="text-base font-normal text-white/45">(explained in the report)</span></h2>
           {(["problem", "rule"] as const).map((role) => (
             <div key={role} className="space-y-3 rounded-2xl border border-white/10 p-5">
               <p className="text-sm text-white/50">{role === "problem" ? "Behind the problem" : "Behind the rule"}</p>

@@ -14,8 +14,8 @@ export function ReviewApp({ view, busy, send }: { view: ProjectView; busy: boole
   const engineering = view.track === "engineering";
   const agent = view.scenario.assistant.name;
   const approve = view.actions.find((action) => action.id === "approve");
-  // Where the job has Handbook ideas, a change request explains itself, as a real one would.
-  const needsNote = view.handbook.total > 0;
+  // Where the job teaches concepts, a change request explains itself, as a real one would.
+  const needsNote = view.conceptCount > 0;
   const ready = (engineering ? Boolean(picked) : Boolean(reason)) && (!needsNote || note.trim().length >= 15);
 
   if (!work) {

@@ -28,7 +28,6 @@ import {
   appName,
   appTitle,
   DOCK,
-  dockFor,
   guideFor,
   nextStep,
   reviewRepo,
@@ -232,7 +231,7 @@ test("concepts must be tied to their fact and their flaw, and a subject mission 
   assert.equal(missing.problems.some((problem) => problem.includes("no concepts")), true);
 });
 
-test("Handbook notes unlock with their fact, and all of them by the review", async () => {
+test("concepts stay out of the view during play and are explained in the report", async () => {
   let state = startProject(harbourClinic);
   const history: SimulationHistory = [];
   const take = (step: ProjectStep) => {
@@ -241,13 +240,11 @@ test("Handbook notes unlock with their fact, and all of them by the review", asy
   };
   state = take(chooseAction(harbourClinic, state, "pick-product"));
   state = take(chooseAction(harbourClinic, state, "call-grace"));
-  assert.deepEqual(projectView(harbourClinic, state, history).handbook, { entries: [], total: 2 });
-
   state = (await askClient(harbourClinic, state, "Why do the double bookings happen, and when in the morning?", offlineEvaluator)).state;
-  const afterCall = projectView(harbourClinic, state, history).handbook;
-  assert.deepEqual(afterCall.entries.map((entry) => entry.name), ["Race conditions"]);
-  // The fact that unlocks a note is not sent to the browser.
-  assert.equal("fact" in afterCall.entries[0], false);
+  const during = projectView(harbourClinic, state, history);
+  assert.equal(during.conceptCount, 2);
+  // Nothing names the idea before the report.
+  assert.equal(JSON.stringify(during).includes("Race conditions"), false);
 
   for (const question of ["What computer and browser does the front desk have?", "How will you know it's fixed?"]) {
     state = (await askClient(harbourClinic, state, question, offlineEvaluator)).state;
@@ -255,16 +252,15 @@ test("Handbook notes unlock with their fact, and all of them by the review", asy
   state = take(endInterview(harbourClinic, state));
   state = take(await submitRequirements(harbourClinic, state, "No double bookings.", offlineEvaluator));
   state = take(await submitBrief(harbourClinic, state, "Build the booking board.", offlineEvaluator));
-  const atReview = projectView(harbourClinic, state, history);
-  assert.equal(atReview.stage.id, "review");
-  assert.deepEqual(atReview.handbook.entries.map((entry) => entry.name), ["Race conditions", "Audit trails"]);
+  state = take(chooseAction(harbourClinic, state, "approve"));
+  state = take(chooseAction(harbourClinic, state, "release-now"));
+  const concepts = projectView(harbourClinic, state, history).completion!.concepts;
+  assert.deepEqual(concepts.map((concept) => concept.name), ["Race conditions", "Audit trails"]);
+  assert.ok(concepts.every((concept) => concept.explanation.length > 40 && concept.bridge.length > 20));
 });
 
-test("a project without concepts has no Handbook in the Dock", () => {
-  const plain = projectView(buildScenario(marketingDraft, { id: "gen-plainplain12" }), startProject(buildScenario(marketingDraft, { id: "gen-plainplain12" })), []);
-  assert.equal(dockFor(plain).includes("handbook"), false);
-  const harbour = projectView(harbourClinic, startProject(harbourClinic), []);
-  assert.equal(dockFor(harbour).includes("handbook"), true);
+test("the Dock has the six apps of the desktop", () => {
+  assert.deepEqual(DOCK, ["mail", "call", "notes", "cody", "review", "launch"]);
 });
 
 test("a subject mission passes the subject and the learner to the model", async () => {
