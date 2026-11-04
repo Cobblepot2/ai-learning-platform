@@ -5,7 +5,6 @@ const TILE: Record<AppId, string> = {
   mail: "from-sky-400 to-blue-600",
   call: "from-emerald-400 to-green-600",
   notes: "from-amber-200 to-yellow-400",
-  handbook: "from-teal-400 to-cyan-600",
   cody: "from-violet-500 to-fuchsia-600",
   review: "from-slate-600 to-slate-900",
   launch: "from-orange-400 to-rose-500",
@@ -33,13 +32,6 @@ function Glyph({ app }: { app: AppId }) {
       return (
         <svg viewBox="0 0 24 24" className="h-[58%] w-[58%]" aria-hidden>
           <path d="M6 7h12M6 11.5h12M6 16h8" {...common} />
-        </svg>
-      );
-    case "handbook":
-      return (
-        <svg viewBox="0 0 24 24" className="h-[58%] w-[58%]" aria-hidden>
-          <path d="M4 5.5C6.5 4.5 9.5 4.5 12 6c2.5-1.5 5.5-1.5 8-.5V19c-2.5-1-5.5-1-8 .5-2.5-1.5-5.5-1.5-8-.5z" {...common} />
-          <path d="M12 6v13.5" {...common} />
         </svg>
       );
     case "cody":

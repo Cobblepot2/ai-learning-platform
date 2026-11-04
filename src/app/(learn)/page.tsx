@@ -11,7 +11,6 @@ const DESK: Record<AppId, string> = {
   mail: "Read the brief: the client's request, a ticket from the people who'll use the system and a note from your manager.",
   call: "Interview the client. They know what's really wrong, but they only answer what you ask.",
   notes: "Write the requirements, including how everyone will know the work succeeded.",
-  handbook: "Look up the ideas the job depends on, explained through what you already know.",
   cody: "Brief the AI coding agent. It builds exactly what you describe, gaps and all.",
   review: "Check what comes back. Approve it, or send it back with a clear reason.",
   launch: "Choose how to release it, then see how it plays out.",
