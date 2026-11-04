@@ -38,6 +38,9 @@ async function TeacherClasses({ db, ownerId }: { db: NonNullable<Awaited<ReturnT
       <div className={`${glass} mt-10 p-7`}>
         <CreateClass />
       </div>
+      <p className="mt-4 text-white/60">
+        Want a project of your own? <Link href="/teach/projects" className="text-white underline hover:text-cyan-200">Create one from your teaching material, or customise an existing one.</Link>
+      </p>
       <ul className="mt-8 grid gap-4 md:grid-cols-2">
         {classes.map((item) => (
           <li key={item.id}>

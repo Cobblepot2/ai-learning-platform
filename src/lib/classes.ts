@@ -3,13 +3,14 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { SimulationState } from "@/lib/learning/simulation/engine";
 import { projectListings } from "@/lib/projects/catalog";
 import { getProjectScenario } from "@/lib/projects";
+import { isGeneratedId, listOwnGeneratedProjects, loadGeneratedScenario } from "@/lib/projects/generated/store";
 import { conceptResults, trackOf, type ConceptResult } from "@/lib/projects/runtime";
 import type { ProjectScenario, Track } from "@/lib/projects/types";
 import { HttpError, recordDb, redactSecrets } from "@/lib/supabase/server";
 
 /*
  * An instructor's classes: students join with a code, the instructor assigns
- * built-in projects and follows each student's runs. Reads and writes go
+ * built-in projects or their own, and follows each student's runs. Reads and writes go
  * through the instructor's row-level-secured client; students' runs are read
  * with the service role only after that client has shown the class is theirs.
  */
@@ -29,6 +30,12 @@ export const ASSIGNABLE = projectListings.map(({ id, title }) => ({ id, title })
 
 export function isAssignable(id: string) {
   return ASSIGNABLE.some((project) => project.id === id);
+}
+
+/** What this instructor can assign: the built-in projects, then the ones they made. */
+export async function assignableFor(db: SupabaseClient) {
+  const own = await listOwnGeneratedProjects(db);
+  return [...ASSIGNABLE, ...own.map(({ id, title }) => ({ id, title }))];
 }
 
 export type ClassRow = { id: string; name: string; join_code: string; created_at: string };
@@ -74,13 +81,13 @@ export async function loadOwnClass(db: SupabaseClient, ownerId: string, classId:
   return {
     ...(data as ClassRow),
     members: (members ?? []) as { student_id: string; joined_at: string }[],
-    projects: (projects ?? []).map((row) => row.project_id as string).filter(isAssignable),
+    projects: (projects ?? []).map((row) => row.project_id as string).filter((id) => isAssignable(id) || isGeneratedId(id)),
   };
 }
 
-/** Replaces the class's assigned projects. */
-export async function assignProjects(db: SupabaseClient, classId: string, projectIds: string[]) {
-  const wanted = [...new Set(projectIds)].filter(isAssignable);
+/** Replaces the class's assigned projects with those of `projectIds` the instructor may assign. */
+export async function assignProjects(db: SupabaseClient, classId: string, projectIds: string[], allowed: string[]) {
+  const wanted = [...new Set(projectIds)].filter((id) => allowed.includes(id));
   const { data: current, error } = await db.from("class_projects").select("project_id").eq("class_id", classId);
   if (error) throw new HttpError(503, "Could not update the projects. Please retry.");
   const have = (current ?? []).map((row) => row.project_id as string);
@@ -144,10 +151,17 @@ export type StudentProgress = { id: string; name: string; email: string | null; 
  * has shown that the class belongs to the signed-in instructor.
  */
 export async function classProgress(
+  ownerId: string,
   members: { student_id: string; joined_at: string }[],
   projectIds: string[],
 ): Promise<StudentProgress[]> {
   if (!members.length) return [];
+  // The instructor's own projects are loaded as their owner.
+  const scenarios = new Map<string, ProjectScenario>();
+  for (const id of projectIds) {
+    const scenario = getProjectScenario(id) ?? (isGeneratedId(id) ? await loadGeneratedScenario(id, ownerId) : null);
+    if (scenario) scenarios.set(id, scenario);
+  }
   const service = recordDb();
   const ids = members.map((member) => member.student_id);
   const [{ data: profiles }, { data: sessions, error }, users] = await Promise.all([
@@ -168,7 +182,7 @@ export async function classProgress(
     const name = (profiles ?? []).find((row) => row.id === member.student_id)?.display_name?.trim() || email?.split("@")[0] || "Student";
     const runs: Record<string, RunSummary> = {};
     for (const projectId of projectIds) {
-      const scenario = getProjectScenario(projectId);
+      const scenario = scenarios.get(projectId);
       if (!scenario) continue;
       const row = (sessions ?? []).find((item) => item.user_id === member.student_id && item.activity_id === projectId);
       runs[projectId] = summariseRun(scenario, row ? (row as { state: SimulationState; status: string; outcome: string | null; updated_at: string }) : null);
@@ -203,12 +217,16 @@ export async function studentClasses(db: SupabaseClient, studentId: string) {
     db.from("classes").select("id,name").in("id", classIds),
     db.from("class_projects").select("class_id,project_id").in("class_id", classIds),
   ]);
+  // Titles of the instructors' own projects; the student can't read those rows themselves.
+  const generated = [...new Set((projects ?? []).map((item) => item.project_id as string).filter(isGeneratedId))];
+  const { data: titles } = generated.length ? await recordDb().from("generated_projects").select("id,title").in("id", generated) : { data: [] };
+  const known = [...ASSIGNABLE, ...((titles ?? []) as { id: string; title: string }[])];
   return (classes ?? []).map((row) => ({
     id: row.id as string,
     name: row.name as string,
     projects: (projects ?? [])
       .filter((item) => item.class_id === row.id)
-      .map((item) => ASSIGNABLE.find((project) => project.id === item.project_id))
-      .filter((project): project is (typeof ASSIGNABLE)[number] => Boolean(project)),
+      .map((item) => known.find((project) => project.id === item.project_id))
+      .filter((project): project is { id: string; title: string } => Boolean(project)),
   }));
 }

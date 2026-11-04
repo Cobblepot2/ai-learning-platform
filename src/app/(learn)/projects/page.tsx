@@ -121,7 +121,7 @@ export default async function ProjectsPage() {
         <section className="mt-16">
           <Reveal>
             <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Your projects</h2>
-            <p className="mt-2 text-white/60">Only you can see and play these.</p>
+            <p className="mt-2 text-white/60">Only you can see these, unless you assign one to a class you teach.</p>
           </Reveal>
           <div className="mt-6 grid gap-5 md:grid-cols-2">
             {projects.map((project) => (

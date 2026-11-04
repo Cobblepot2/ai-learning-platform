@@ -5,7 +5,7 @@ import { glass } from "@/components/home/glass";
 import { Reveal } from "@/components/home/Reveal";
 import { AssignProjects } from "@/components/teach/AssignProjects";
 import { RemoveStudent } from "@/components/teach/RemoveStudent";
-import { ASSIGNABLE, classProgress, loadOwnClass, type RunSummary } from "@/lib/classes";
+import { assignableFor, classProgress, loadOwnClass, type RunSummary } from "@/lib/classes";
 import type { ConceptResult } from "@/lib/projects/runtime";
 import { instructor } from "@/lib/instructor";
 
@@ -79,8 +79,8 @@ export default async function ClassPage({ params }: { params: Promise<{ classId:
   if (!teacher) notFound();
   const owned = await loadOwnClass(teacher.db, teacher.user.id, classId);
   if (!owned) notFound();
-  const students = await classProgress(owned.members, owned.projects);
-  const titles = new Map(ASSIGNABLE.map((project) => [project.id, project.title]));
+  const [students, assignable] = await Promise.all([classProgress(teacher.user.id, owned.members, owned.projects), assignableFor(teacher.db)]);
+  const titles = new Map(assignable.map((project) => [project.id, project.title]));
 
   return (
     <div className="mx-auto max-w-4xl px-4 pb-24 pt-12 text-white lg:px-0 lg:pt-16">
@@ -95,9 +95,11 @@ export default async function ClassPage({ params }: { params: Promise<{ classId:
 
       <section className="mt-10">
         <h2 className="text-xl font-semibold">Assigned projects</h2>
-        <p className="mt-1 text-sm text-white/55">Students see these under the class on their Projects page.</p>
+        <p className="mt-1 text-sm text-white/55">
+          Students see these under the class on their Projects page. Projects you <Link href="/teach/projects" className="underline hover:text-white">create or customise</Link> appear here too.
+        </p>
         <div className="mt-4">
-          <AssignProjects classId={owned.id} projects={ASSIGNABLE} assigned={owned.projects} />
+          <AssignProjects classId={owned.id} projects={assignable} assigned={owned.projects} />
         </div>
       </section>
 

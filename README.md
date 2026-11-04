@@ -74,7 +74,7 @@ A run usually makes 4 to 6 requests (about half the interview questions, plus th
 | Evaluator for free text | Gemini, with a keyword fallback (see above) |
 | Client trust that a well-run project can raise to 10, explained in the report | Done |
 | Instructor classes: join code, assigned projects, each student's progress, concepts and teach-back | Done |
-| Instructors customise projects and create them with AI | Planned |
+| Instructors create projects from their teaching material, customise existing ones with AI, edit the words by hand (checked on save) and assign them to classes | Done |
 
 ## Tech stack
 

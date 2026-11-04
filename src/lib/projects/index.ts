@@ -1,10 +1,19 @@
 import { harbourClinic } from "./harbour-clinic";
-import { parcelPal } from "./parcelpal";
-import { tidewaterSwim } from "./tidewater-swim";
+import { harbourClinicDraft } from "./generated/draft-example";
+import type { ProjectDraft } from "./generated/draft";
+import { parcelPal, parcelPalDraft } from "./parcelpal";
+import { tidewaterSwim, tidewaterSwimDraft } from "./tidewater-swim";
 import { isGeneratedId, loadGeneratedScenario } from "./generated/store";
 import type { ProjectScenario } from "./types";
 
 export const projectScenarios: ProjectScenario[] = [harbourClinic, tidewaterSwim, parcelPal];
+
+/** The built-in projects as drafts, for instructors to customise with the AI. */
+export const BUILT_IN_DRAFTS: Record<string, ProjectDraft> = {
+  "harbour-clinic": harbourClinicDraft,
+  "tidewater-swim": tidewaterSwimDraft,
+  parcelpal: parcelPalDraft,
+};
 
 /** A built-in project, written in code. */
 export function getProjectScenario(id: string): ProjectScenario | undefined {
