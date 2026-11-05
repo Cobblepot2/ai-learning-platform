@@ -16,8 +16,9 @@ const menuLink = "block rounded-lg px-3 py-2 text-white/80 hover:bg-white/10";
 export function NavBar() {
   const { user, signOut } = useAuth();
   const initial = (user?.email || "?").trim().charAt(0).toUpperCase();
-  // Instructors get a link to their classes.
-  const [teacher, setTeacher] = useState(false);
+  // Instructors get a link to their classes, administrators one to the admin page.
+  const [role, setRole] = useState<string | null>(null);
+  const teacher = role === "instructor" || role === "admin";
   useEffect(() => {
     const supabase = getSupabase();
     if (!user || !supabase) return;
@@ -28,7 +29,7 @@ export function NavBar() {
       .eq("id", user.id)
       .maybeSingle()
       .then(({ data }) => {
-        if (!cancelled) setTeacher(["instructor", "admin"].includes(data?.role ?? ""));
+        if (!cancelled) setRole(data?.role ?? null);
       });
     return () => {
       cancelled = true;
@@ -49,6 +50,11 @@ export function NavBar() {
           {user && teacher && (
             <Link href="/teach" className={navLink}>
               Teach
+            </Link>
+          )}
+          {user && role === "admin" && (
+            <Link href="/admin" className={navLink}>
+              Admin
             </Link>
           )}
           {user ? (

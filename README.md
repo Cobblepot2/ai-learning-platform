@@ -7,6 +7,7 @@ DevPath is a learning platform built around immersive project simulations. The l
 Each job rests on two concepts of its subject, and the AI coding agent gets them wrong the way beginners do. The learner learns them by catching the mistake and explaining why it's wrong. The report at the end scores how they worked with AI on the four AI Fluency competencies, then explains each idea and what happened to it in their run.
 
 - **For learners:** three built-in software engineering projects, each playable as product lead (no code) or tech lead (the pull request). They can also have a project written for their own background, subject and level, or follow a learning path of three.
+- **For administrators:** every account with its role, making accounts instructors, and an overview of how the platform is used.
 - **For instructors:** classes joined with a code, assigned projects, and each student's progress, concepts and teach-back notes. They can also create projects from their own teaching material, customise existing ones with AI and edit the words by hand.
 
 **Live:** https://ai-learning-platform-sable.vercel.app. The home page has a 30-second product tour.
@@ -90,6 +91,7 @@ A run usually makes 4 to 6 requests (about half the interview questions, plus th
 | Learning paths: three generated projects on one subject, two new ideas each, from the learner's level up | Done |
 | Evaluator for free text | Gemini, with a keyword fallback (see above) |
 | Client trust that a well-run project can raise to 10, explained in the report | Done |
+| Admin page: accounts and roles (student ⇄ instructor), platform overview and AI requests in the last 24 hours | Done |
 | Instructor classes: join code, assigned projects, each student's progress, concepts and teach-back | Done |
 | Instructors create projects from their teaching material, customise existing ones with AI, edit the words by hand (checked on save) and assign them to classes | Done |
 
@@ -126,12 +128,14 @@ src/
   app/
     (learn)/                 home, /projects, /projects/new, /paths/[id], sign-in, auth callback
     (learn)/teach/           instructors: classes, a class's progress, their projects and the editor
+    (learn)/admin/           administrators: accounts and roles, platform overview
     (sim)/projects/[id]/     the full-screen desktop for one project
     api/projects/[id]/       start a run and apply each move
     api/projects/generate/   write a project with the AI
     api/paths/               plan a learning path, and create each step's project
     api/classes/             create a class, join with a code, assign projects, remove a student
     api/teach/projects/      instructors: create or customise a project with the AI, save hand edits
+    api/admin/users/[id]/    administrators: change an account's role
   components/
     home/                    light-band background, glass cards, scroll reveal, tour link
     projects/desktop/        desktop shell, windows, Dock, overlays, the six apps and sound cues
@@ -142,6 +146,7 @@ src/
     projects/                scenario types, scenarios, runtime and evaluator
     projects/generated/      drafts, builder, checks, generation, profiles, learning paths, hand edits
     classes.ts               classes, join codes, assigned projects and each student's progress
+    admin.ts                 the admin check, accounts and roles, platform overview
     learning/simulation/     generic state machine and schema
     ai/                      Gemini client and hourly AI quota
     supabase/                browser and server clients, API error mapping
@@ -175,14 +180,14 @@ Fill in `.env.local` before signing in:
 2. Run every file in `supabase/migrations` in filename order in the SQL editor.
 3. Under Authentication → URL Configuration, add `http://localhost:3000/auth/callback` and each deployed origin plus `/auth/callback` to the redirect allow list.
 4. To enable GitHub sign-in, create a GitHub OAuth app with the callback URL Supabase shows under Authentication → Providers → GitHub, and paste its client ID and secret there.
-5. To make an account an instructor, run this in the SQL editor (a trigger stops users from changing their own role):
+5. Make the first administrator in the SQL editor (a trigger stops users from changing their own role):
 
    ```sql
-   update public.profiles set role = 'instructor'
-   where id = (select id from auth.users where email = 'teacher@example.com');
+   update public.profiles set role = 'admin'
+   where id = (select id from auth.users where email = 'admin@example.com');
    ```
 
-   The account then sees **Teach** in the navigation bar.
+   The account then sees **Admin** in the navigation bar. On `/admin` it can make other accounts instructors (who then see **Teach**) or students again. Administrators are made only in the SQL editor, and nobody can change their own role on the page.
 
 The migrations also contain the tables of the earlier course platform. The app no longer uses them; they are kept so existing data is not dropped.
 
