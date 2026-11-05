@@ -62,8 +62,7 @@ export default async function AdminPage() {
           {users.map((item) => (
             <li key={item.id} className={`${glass} flex flex-wrap items-center justify-between gap-4 p-5`}>
               <div className="min-w-0">
-                <p className="truncate font-semibold">{item.name || item.email || "Account"}</p>
-                {item.name && item.email && <p className="truncate text-sm text-white/50">{item.email}</p>}
+                <p className="truncate font-semibold">{item.email ?? "Account without an email"}</p>
                 <p className="mt-1 text-xs text-white/45">
                   Joined {when(item.createdAt)} · last signed in {when(item.lastSignIn)} · {item.runs} {item.runs === 1 ? "run" : "runs"}
                   {item.classesTaught > 0 && ` · teaches ${item.classesTaught} ${item.classesTaught === 1 ? "class" : "classes"}`}

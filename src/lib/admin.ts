@@ -48,7 +48,6 @@ export async function requireAdmin() {
 export type AdminUser = {
   id: string;
   email: string | null;
-  name: string | null;
   role: string;
   createdAt: string;
   lastSignIn: string | null;
@@ -60,7 +59,7 @@ export async function listUsers(): Promise<AdminUser[]> {
   const service = recordDb();
   const [{ data: list, error }, { data: profiles }, { data: runs }, { data: classes }] = await Promise.all([
     service.auth.admin.listUsers({ perPage: 500 }),
-    service.from("profiles").select("id,display_name,role"),
+    service.from("profiles").select("id,role"),
     service.from("simulation_sessions").select("user_id").like("course_id", "project:%"),
     service.from("classes").select("owner_id"),
   ]);
@@ -75,7 +74,6 @@ export async function listUsers(): Promise<AdminUser[]> {
       return {
         id: user.id,
         email: user.email ?? null,
-        name: (profile?.display_name as string | null) ?? null,
         role: (profile?.role as string | undefined) ?? "student",
         createdAt: user.created_at,
         lastSignIn: user.last_sign_in_at ?? null,

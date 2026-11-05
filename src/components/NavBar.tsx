@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth-store";
 
@@ -16,6 +16,22 @@ const menuLink = "block rounded-lg px-3 py-2 text-white/80 hover:bg-white/10";
 export function NavBar() {
   const { user, signOut } = useAuth();
   const initial = (user?.email || "?").trim().charAt(0).toUpperCase();
+  // The account menu is a <details>, which only closes from its own summary; close it from outside too.
+  const menu = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    const close = (event: Event) => {
+      const details = menu.current;
+      if (!details?.open) return;
+      if (event instanceof KeyboardEvent ? event.key === "Escape" : !details.contains(event.target as Node)) details.open = false;
+    };
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", close);
+    return () => {
+      document.removeEventListener("pointerdown", close);
+      document.removeEventListener("keydown", close);
+    };
+  }, []);
+
   // Instructors get a link to their classes, administrators one to the admin page.
   const [role, setRole] = useState<string | null>(null);
   const teacher = role === "instructor" || role === "admin";
@@ -58,7 +74,7 @@ export function NavBar() {
             </Link>
           )}
           {user ? (
-            <details className="relative">
+            <details ref={menu} className="relative">
               <summary className="flex cursor-pointer list-none items-center gap-2 rounded-full px-1 py-0.5 hover:bg-white/10 [&::-webkit-details-marker]:hidden">
                 <span className="grid h-8 w-8 place-items-center rounded-full bg-white/15 text-sm font-semibold text-white">
                   {initial}

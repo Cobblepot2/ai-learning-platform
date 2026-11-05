@@ -164,8 +164,7 @@ export async function classProgress(
   }
   const service = recordDb();
   const ids = members.map((member) => member.student_id);
-  const [{ data: profiles }, { data: sessions, error }, users] = await Promise.all([
-    service.from("profiles").select("id,display_name").in("id", ids),
+  const [{ data: sessions, error }, users] = await Promise.all([
     projectIds.length
       ? service
           .from("simulation_sessions")
@@ -179,7 +178,8 @@ export async function classProgress(
   const emails = new Map(users);
   return members.map((member) => {
     const email = emails.get(member.student_id) ?? null;
-    const name = (profiles ?? []).find((row) => row.id === member.student_id)?.display_name?.trim() || email?.split("@")[0] || "Student";
+    // Names come from the email: the retired onboarding's display names are stale, and nothing sets them now.
+    const name = email?.split("@")[0] || "Student";
     const runs: Record<string, RunSummary> = {};
     for (const projectId of projectIds) {
       const scenario = scenarios.get(projectId);
