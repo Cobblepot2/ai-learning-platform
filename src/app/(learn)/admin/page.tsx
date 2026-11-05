@@ -44,7 +44,7 @@ export default async function AdminPage() {
       <section className="mt-10">
         <h2 className="text-xl font-semibold">Overview</h2>
         <div className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-4">
-          <Stat label="Accounts" value={stats.users.total} note={`${stats.users.instructors} instructors · ${stats.users.admins} admins`} />
+          <Stat label="Accounts" value={stats.users.total} note={`${stats.users.instructors} ${stats.users.instructors === 1 ? "instructor" : "instructors"} · ${stats.users.admins} ${stats.users.admins === 1 ? "admin" : "admins"}`} />
           <Stat label="Classes" value={stats.classes} />
           <Stat label="Project runs" value={stats.runs.total} note={`${stats.runs.completed} finished · ${stats.runs.successful} successful`} />
           <Stat label="Generated projects" value={stats.generatedProjects} />
