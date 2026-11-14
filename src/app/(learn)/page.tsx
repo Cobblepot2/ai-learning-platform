@@ -67,7 +67,7 @@ const IDEAS = [
 const FOR_YOU = [
   { title: "Two roles in one project", text: "As product lead you review how the software behaves; no coding needed. As tech lead you review Cody's pull request line by line." },
   { title: "A project for your subject", text: "Say who you are, what you want to learn and how much you know. The AI writes a job in your world, and checks it plays fairly before you start." },
-  { title: "A learning path", text: "Three projects on one subject, two new ideas in each, from your level up. Each opens when you finish the one before." },
+  { title: "Beyond software", text: "The same desktop works for other subjects. In the ward audit, a nursing student checks an AI analyst's statistics instead of Cody's code." },
 ];
 
 const TEACHERS = [

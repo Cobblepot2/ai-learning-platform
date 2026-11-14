@@ -9,11 +9,15 @@ import { getProjectScenario } from "../src/lib/projects";
 import { projectListings } from "../src/lib/projects/catalog";
 import { parcelPalDraft } from "../src/lib/projects/parcelpal";
 import { tidewaterSwimDraft } from "../src/lib/projects/tidewater-swim";
+import { wardInfectionAuditDraft } from "../src/lib/projects/ward-infection-audit";
 
 // Built-in projects written as drafts: they must pass the same checks as generated ones.
-const drafts = { "tidewater-swim": tidewaterSwimDraft, parcelpal: parcelPalDraft };
+// The software projects have both roles; the others, the product lead only.
+const drafts = { "tidewater-swim": tidewaterSwimDraft, parcelpal: parcelPalDraft, "ward-infection-audit": wardInfectionAuditDraft };
+const productOnly = new Set(["ward-infection-audit"]);
 
 for (const [id, draft] of Object.entries(drafts)) {
+  const tracks = productOnly.has(id) ? (["product"] as const) : (["product", "engineering"] as const);
   test(`${id} passes every check and teaches its two concepts`, async () => {
     const parsed = projectDraftSchema.parse(draft);
     const check = await checkProject(buildScenario(parsed, { id }), parsed, { requireConcepts: true });
@@ -38,7 +42,7 @@ for (const [id, draft] of Object.entries(drafts)) {
     return { scenario, state };
   }
 
-  for (const track of ["product", "engineering"] as const) {
+  for (const track of tracks) {
     test(`${id} plays through to a 10/10 success as the ${track} lead`, async () => {
       const { scenario, state: review } = await reachReview(track, `${draft.samples.brief} Add a test.`);
       const work = projectView(scenario, review, []).work!;
@@ -50,6 +54,13 @@ for (const [id, draft] of Object.entries(drafts)) {
       assert.equal(state.variables.trust, 10);
     });
   }
+
+  test(`${id} offers ${productOnly.has(id) ? "only the product lead role" : "both roles"}`, () => {
+    const actions = getProjectScenario(id)!.config.stages.find((stage) => stage.id === "choose-track")!.actions.map((action) => action.id);
+    assert.deepEqual(actions, productOnly.has(id) ? ["pick-product"] : ["pick-product", "pick-engineering"]);
+  });
+
+  if (productOnly.has(id)) continue;
 
   test(`${id}'s pull requests point at real lines, and the right line gets the fix`, async () => {
     const scenario = getProjectScenario(id)!;
@@ -71,3 +82,12 @@ for (const [id, draft] of Object.entries(drafts)) {
     assert.throws(() => requestChanges(scenario, fixed.state, flawed.problemLines[0]), /already fixed/);
   });
 }
+
+test("every listing's two ideas are the concepts its project teaches, problem first", () => {
+  for (const listing of projectListings) {
+    const concepts = getProjectScenario(listing.id)!.concepts!;
+    const problem = concepts.find((concept) => concept.id === "K-problem" || concept.fact === "F1")!;
+    const rule = concepts.find((concept) => concept !== problem)!;
+    assert.deepEqual(listing.ideas, [problem.name, rule.name], listing.id);
+  }
+});

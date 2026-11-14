@@ -7,7 +7,7 @@ import { generateProject } from "../src/lib/projects/generated/generate";
 import { tidewaterSwimDraft } from "../src/lib/projects/tidewater-swim";
 
 test("every built-in project can be customised from its draft", () => {
-  assert.deepEqual(Object.keys(BUILT_IN_DRAFTS), ["harbour-clinic", "tidewater-swim", "parcelpal"]);
+  assert.deepEqual(Object.keys(BUILT_IN_DRAFTS), ["harbour-clinic", "tidewater-swim", "parcelpal", "ward-infection-audit"]);
 });
 
 test("a customisation sends the base project, the instructions and the material, fenced", async () => {
