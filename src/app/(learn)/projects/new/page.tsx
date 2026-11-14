@@ -4,7 +4,8 @@ import { CreateProject } from "@/components/projects/CreateProject";
 
 export const metadata: Metadata = { title: "Create a project · DevPath" };
 
-export default function NewProjectPage() {
+export default async function NewProjectPage({ searchParams }: { searchParams: Promise<{ subject?: string }> }) {
+  const { subject } = await searchParams;
   return (
     <div className="mx-auto max-w-2xl px-4 pb-24 pt-12 text-white lg:px-0 lg:pt-16">
       <Reveal>
@@ -14,7 +15,7 @@ export default function NewProjectPage() {
         </p>
       </Reveal>
       <div className="mt-10">
-        <CreateProject />
+        <CreateProject initialSubject={subject?.trim().slice(0, 80) ?? ""} />
       </div>
     </div>
   );

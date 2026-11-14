@@ -26,13 +26,14 @@ const MODES = [
 const input =
   "mt-2 w-full rounded-2xl border border-white/20 bg-black/30 px-5 py-3 text-white outline-none placeholder:text-white/35 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/20";
 
-export function CreateProject() {
+/** `initialSubject` preselects the subject, as the projects page's software card does. */
+export function CreateProject({ initialSubject = "" }: { initialSubject?: string }) {
   const { ready, user } = useAuth();
   const router = useRouter();
   // One project, or a learning path of several that teach one subject.
   const [mode, setMode] = useState<"project" | "path">("project");
   const [topic, setTopic] = useState("");
-  const [subject, setSubject] = useState("");
+  const [subject, setSubject] = useState(initialSubject);
   const [background, setBackground] = useState("");
   const [level, setLevel] = useState<Level | null>(null);
   const [status, setStatus] = useState<"idle" | "working" | "done" | "error">("idle");

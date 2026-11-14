@@ -62,6 +62,16 @@ export default async function ProjectsPage() {
           {projectListings.filter((project) => project.field === "software").map((project) => (
             <ProjectCard key={project.id} project={project} />
           ))}
+          <SpotlightCard delay={100} className="flex h-full flex-col border-dashed p-7">
+            <p className="text-sm text-white/50">Software engineering, your way</p>
+            <h3 className="mt-2 text-2xl font-semibold">Create a project</h3>
+            <p className="mt-3 leading-relaxed text-white/60">
+              Say who you are and how much you know. The AI writes a new software job at your level, with its own client, problem and two ideas, then checks that every path through it plays fairly.
+            </p>
+            <Link href="/projects/new?subject=Software%20engineering" className={openButton}>
+              Create a project
+            </Link>
+          </SpotlightCard>
         </div>
       </section>
 
