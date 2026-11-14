@@ -130,7 +130,7 @@ export function CreateProject() {
         <div>
           <label htmlFor="project-background" className="font-semibold">About you</label>
           <p className="mt-1 text-sm text-white/50">Your role or field. The job is set in your world, and the report explains its ideas with examples from it. Saved for next time.</p>
-          <input id="project-background" value={background} onChange={(event) => setBackground(event.target.value)} maxLength={160} placeholder="a second-year nursing student" className={input} />
+          <input id="project-background" value={background} onChange={(event) => setBackground(event.target.value)} maxLength={160} placeholder="a second-year computer science student" className={input} />
         </div>
         <div>
           <label htmlFor="project-subject" className="font-semibold">
