@@ -82,3 +82,12 @@ for (const [id, draft] of Object.entries(drafts)) {
     assert.throws(() => requestChanges(scenario, fixed.state, flawed.problemLines[0]), /already fixed/);
   });
 }
+
+test("every listing's two ideas are the concepts its project teaches, problem first", () => {
+  for (const listing of projectListings) {
+    const concepts = getProjectScenario(listing.id)!.concepts!;
+    const problem = concepts.find((concept) => concept.id === "K-problem" || concept.fact === "F1")!;
+    const rule = concepts.find((concept) => concept !== problem)!;
+    assert.deepEqual(listing.ideas, [problem.name, rule.name], listing.id);
+  }
+});
