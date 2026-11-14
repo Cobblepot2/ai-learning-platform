@@ -44,4 +44,15 @@ export const parcelPalListing = {
   skills: ["Question the client's theory", "Brief an AI coding agent", "Review its work", "Release and face the result"],
 } as const satisfies ProjectListing;
 
-export const projectListings: readonly ProjectListing[] = [harbourClinicListing, tidewaterSwimListing, parcelPalListing];
+// A statistics job for a nursing student, from docs/scenarios/examples (ward-infection-audit.ts).
+export const wardInfectionAuditListing = {
+  id: "ward-infection-audit",
+  title: "Ward 4B Infection Audit",
+  tagline: "Beyond software: check an AI analyst's statistics before a hospital committee sees them.",
+  summary:
+    "A ward manager wants proof that a new hand gel cut infections on her ward. You lead the audit as a nursing student: find out what the numbers really show, brief the AI statistical analyst, review its findings and decide how to report them.",
+  minutes: 20,
+  skills: ["Question the client's evidence", "Brief an AI analyst", "Review its findings", "Report and face the result"],
+} as const satisfies ProjectListing;
+
+export const projectListings: readonly ProjectListing[] = [harbourClinicListing, tidewaterSwimListing, parcelPalListing, wardInfectionAuditListing];

@@ -6,7 +6,7 @@ DevPath is a learning platform built around immersive project simulations. The l
 
 Each job rests on two concepts of its subject, and the AI coding agent gets them wrong the way beginners do. The learner learns them by catching the mistake and explaining why it's wrong. The report at the end scores how they worked with AI on the four AI Fluency competencies, then explains each idea and what happened to it in their run.
 
-- **For learners:** three built-in software engineering projects, each playable as product lead (no code) or tech lead (the pull request). They can also have a project written for their own background, subject and level, or follow a learning path of three.
+- **For learners:** three built-in software engineering projects, each playable as product lead (no code) or tech lead (the pull request), and a statistics project for nursing students with an AI analyst instead of a coding agent. They can also have a project written for their own background, subject and level, or follow a learning path of three.
 - **For administrators:** every account with its role, making accounts instructors, and an overview of how the platform is used.
 - **For instructors:** classes joined with a code, assigned projects, and each student's progress, concepts and teach-back notes. They can also create projects from their own teaching material, customise existing ones with AI and edit the words by hand.
 
@@ -81,6 +81,7 @@ A run usually makes 4 to 6 requests (about half the interview questions, plus th
 |---|---|
 | Harbour Clinic booking board (two tracks, four code versions, several endings) | Done |
 | Tidewater Swim School (regression testing, keeping secrets out of code) and ParcelPal (idempotency, backward compatibility), written as drafts with both roles: product lead reviews behaviour, tech lead reviews the pull request | Done |
+| Ward 4B Infection Audit (rates vs raw counts, confounding variables): a statistics job with an AI analyst, product lead only, from the generator's example draft | Done |
 | macOS-style desktop with guided steps, one-by-one mail and sound cues | Done |
 | Public home page with the product tour, and the projects page | Done |
 | Saved runs, restart, sign-in with GitHub or a magic link | Done |
