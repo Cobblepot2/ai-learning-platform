@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { glass } from "@/components/home/glass";
 import { useAuth } from "@/lib/auth-store";
@@ -18,22 +17,13 @@ const STAGES = [
   { after: 75, text: "Fixing what the checks found. This can take another minute…" },
 ];
 
-const MODES = [
-  ["project", "One project", "A single job on the desktop. About a minute to create."],
-  ["path", "A learning path", "Three projects that teach a subject step by step, from your level up."],
-] as const;
-
 const input =
   "mt-2 w-full rounded-2xl border border-white/20 bg-black/30 px-5 py-3 text-white outline-none placeholder:text-white/35 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/20";
 
-/** `initialSubject` preselects the subject, as the projects page's software card does. */
-export function CreateProject({ initialSubject = "" }: { initialSubject?: string }) {
+export function CreateProject() {
   const { ready, user } = useAuth();
-  const router = useRouter();
-  // One project, or a learning path of several that teach one subject.
-  const [mode, setMode] = useState<"project" | "path">("project");
   const [topic, setTopic] = useState("");
-  const [subject, setSubject] = useState(initialSubject);
+  const [subject, setSubject] = useState("");
   const [background, setBackground] = useState("");
   const [level, setLevel] = useState<Level | null>(null);
   const [status, setStatus] = useState<"idle" | "working" | "done" | "error">("idle");
@@ -75,19 +65,14 @@ export function CreateProject({ initialSubject = "" }: { initialSubject?: string
     setSeconds(0);
     setError("");
     try {
-      const path = mode === "path";
       const profile = { background, level };
-      const res = await fetch(path ? "/api/paths" : "/api/projects/generate", {
+      const res = await fetch("/api/projects/generate", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(path ? { subject, profile } : { topic, subject, profile }),
+        body: JSON.stringify({ topic, subject, profile }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error ?? "Something went wrong. Please try again.");
-      if (path) {
-        router.push(`/paths/${data.id}`);
-        return;
-      }
       setCreated({ id: data.id, title: data.title });
       setStatus("done");
     } catch (cause) {
@@ -135,31 +120,13 @@ export function CreateProject({ initialSubject = "" }: { initialSubject?: string
   }
 
   const working = status === "working";
-  const path = mode === "path";
-  const stage = path
-    ? { text: "Planning three projects, two new ideas in each…" }
-    : ([...STAGES].reverse().find((item) => seconds >= item.after) ?? STAGES[0]);
+  const stage = [...STAGES].reverse().find((item) => seconds >= item.after) ?? STAGES[0];
   const chip = (on: boolean) =>
     `rounded-full border px-3 py-1 text-sm ${on ? "border-cyan-300 bg-cyan-300/10 text-white" : "border-white/15 text-white/70 hover:border-white/40"}`;
 
   return (
     <form onSubmit={submit} className={`${glass} p-7`}>
       <fieldset disabled={working} className="space-y-6">
-        <div role="radiogroup" aria-label="What to create" className="grid gap-2 sm:grid-cols-2">
-          {MODES.map(([value, title, note]) => (
-            <button
-              key={value}
-              type="button"
-              role="radio"
-              aria-checked={mode === value}
-              onClick={() => setMode(value)}
-              className={`rounded-2xl border p-4 text-left ${mode === value ? "border-cyan-300 bg-cyan-300/10" : "border-white/15 hover:border-white/40"}`}
-            >
-              <span className="block font-semibold">{title}</span>
-              <span className="mt-1 block text-sm text-white/55">{note}</span>
-            </button>
-          ))}
-        </div>
         <div>
           <label htmlFor="project-background" className="font-semibold">About you</label>
           <p className="mt-1 text-sm text-white/50">Your role or field. The job is set in your world, and the report explains its ideas with examples from it. Saved for next time.</p>
@@ -167,12 +134,12 @@ export function CreateProject({ initialSubject = "" }: { initialSubject?: string
         </div>
         <div>
           <label htmlFor="project-subject" className="font-semibold">
-            Subject to learn {!path && <span className="font-normal text-white/45">(optional)</span>}
+            Subject to learn <span className="font-normal text-white/45">(optional)</span>
           </label>
           <p className="mt-1 text-sm text-white/50">
-            {path ? "Each project teaches two of its ideas." : "The job then teaches two of its ideas."} Your AI teammate gets them wrong, and you catch it.
+            The job then teaches two of its ideas. Your AI teammate gets them wrong, and you catch it.
           </p>
-          <input id="project-subject" value={subject} onChange={(event) => setSubject(event.target.value)} maxLength={80} required={path} minLength={2} placeholder="Statistics" className={input} />
+          <input id="project-subject" value={subject} onChange={(event) => setSubject(event.target.value)} maxLength={80} minLength={2} placeholder="Statistics" className={input} />
           <div className="mt-3 flex flex-wrap gap-2">
             {SUBJECTS.map((item) => (
               <button key={item} type="button" onClick={() => setSubject(subject === item ? "" : item)} className={chip(subject === item)}>
@@ -193,33 +160,31 @@ export function CreateProject({ initialSubject = "" }: { initialSubject?: string
             </div>
           )}
         </div>
-        {!path && (
-          <div>
-            <label htmlFor="project-topic" className="font-semibold">
-              What is the job? {subject.trim() && <span className="font-normal text-white/45">(optional)</span>}
-            </label>
-            <p className="mt-1 text-sm text-white/50">
-              {subject.trim()
-                ? `Leave it blank and the AI picks a job in your world where ${subject.trim().toLowerCase()} matters.`
-                : "One line about the client and what they want. The AI works out what goes wrong."}
-            </p>
-            <input id="project-topic" value={topic} onChange={(event) => setTopic(event.target.value)} maxLength={200} required={!subject.trim()} minLength={4} placeholder="a loyalty programme for a neighbourhood café" className={input} />
-          </div>
-        )}
+        <div>
+          <label htmlFor="project-topic" className="font-semibold">
+            What is the job? {subject.trim() && <span className="font-normal text-white/45">(optional)</span>}
+          </label>
+          <p className="mt-1 text-sm text-white/50">
+            {subject.trim()
+              ? `Leave it blank and the AI picks a job in your world where ${subject.trim().toLowerCase()} matters.`
+              : "One line about the client and what they want. The AI works out what goes wrong."}
+          </p>
+          <input id="project-topic" value={topic} onChange={(event) => setTopic(event.target.value)} maxLength={200} required={!subject.trim()} minLength={4} placeholder="a loyalty programme for a neighbourhood café" className={input} />
+        </div>
       </fieldset>
 
       {error && <p className="mt-5 rounded-2xl border border-rose-400/30 bg-rose-400/10 p-4 text-sm text-rose-100">{error}</p>}
 
       <div className="mt-7 flex flex-wrap items-center gap-4">
         <button type="submit" disabled={working} className="inline-flex rounded-full bg-white px-7 py-3 text-[15px] font-medium text-black hover:bg-white/85 disabled:opacity-60">
-          {working ? "Creating…" : path ? "Plan the path" : "Create the project"}
+          {working ? "Creating…" : "Create the project"}
         </button>
         {working ? (
           <p className="text-sm text-white/70" aria-live="polite">
             {stage.text} <span className="tabular-nums text-white/45">{seconds}s</span>
           </p>
         ) : (
-          <p className="text-sm text-white/45">{path ? "Planning takes a few seconds. Each project is created when you reach it." : "Takes about a minute."}</p>
+          <p className="text-sm text-white/45">Takes about a minute.</p>
         )}
       </div>
     </form>
