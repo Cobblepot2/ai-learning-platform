@@ -12,7 +12,7 @@ const DESK: Record<AppId, string> = {
   call: "Interview the client. They know what's really wrong, but they only answer what you ask.",
   notes: "Write the requirements, including how everyone will know the work succeeded.",
   cody: "Brief the AI coding agent. It builds exactly what you describe, gaps and all.",
-  review: "Check what comes back. Approve it, or send it back with a clear reason.",
+  review: "Check what comes back. Approve it, or send it back and say what goes wrong and why.",
   launch: "Choose how to release it, then see how it plays out.",
 };
 
@@ -52,13 +52,13 @@ const ENDINGS = [
 
 const PRINCIPLES = [
   { title: "Scripted, so it's fair", text: "Every project follows a written story with real branches. It never drifts, and every learner faces the same situation." },
-  { title: "AI where your words matter", text: "AI reads your questions, requirements and brief: the moments where how you put something changes what happens." },
+  { title: "AI where your words matter", text: "AI reads your questions, requirements, brief and review notes: the moments where how you put something changes what happens." },
   { title: "Consequences, not quizzes", text: "There are no right-answer buttons. What you miss or wave through shows up later, in the code, the release and the report." },
 ];
 
 // How a job teaches its subject: the AI teammate's mistakes are the lesson.
 const IDEAS = [
-  { step: "01", title: "Two ideas in every job", text: "Each project rests on two concepts of its subject, such as race conditions or regression testing. Cody gets them wrong the way beginners do." },
+  { step: "01", title: "Two ideas in every job", text: "Each project rests on two concepts of its subject, such as race conditions or confounding variables. Your AI teammate gets them wrong the way beginners do." },
   { step: "02", title: "Catch it, then explain it", text: "Send the work back and say what goes wrong and why. Your note is graded on both, so naming the symptom isn't enough." },
   { step: "03", title: "The report explains it", text: "After the release you see what each idea means, an analogy, the classic mistake, and what happened to it in your run." },
 ];
@@ -67,7 +67,7 @@ const IDEAS = [
 const FOR_YOU = [
   { title: "Two roles in one project", text: "As product lead you review how the software behaves; no coding needed. As tech lead you review Cody's pull request line by line." },
   { title: "A project for your subject", text: "Say who you are, what you want to learn and how much you know. The AI writes a job in your world, and checks it plays fairly before you start." },
-  { title: "A learning path", text: "Three projects on one subject, two new ideas in each, from your level up. Each opens when you finish the one before." },
+  { title: "Beyond software", text: "The same desktop works for other subjects. In the ward audit, a nursing student checks an AI analyst's statistics instead of Cody's code." },
 ];
 
 const TEACHERS = [
@@ -196,7 +196,7 @@ export default function Home() {
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-teal-300/80">Learn by catching mistakes</p>
           <h2 className="mt-3 text-balance text-3xl font-bold tracking-tight sm:text-5xl">The ideas behind the job.</h2>
           <p className="mt-4 max-w-2xl text-lg text-white/65">
-            Cody is fast and confident, and gets the subject&apos;s key ideas wrong in the classic ways. Spotting why is how you learn them.
+            Your AI teammate is fast and confident, and gets the subject&apos;s key ideas wrong in the classic ways. Spotting why is how you learn them.
           </p>
         </Reveal>
         <ol className="mt-12 grid gap-5 md:grid-cols-3">
@@ -313,7 +313,7 @@ export default function Home() {
         <Reveal>
           <h2 className="text-balance text-3xl font-bold tracking-tight sm:text-5xl">Ready for your first client?</h2>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-white/65">
-            Start with one of the software engineering projects, or have one written for your subject and level. Your progress is saved as you go.
+            Start with a built-in project, in software engineering or beyond, or have one written for your subject and level. Your progress is saved as you go.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Link href="/projects" className={primary}>

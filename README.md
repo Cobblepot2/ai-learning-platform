@@ -6,7 +6,7 @@ DevPath is a learning platform built around immersive project simulations. The l
 
 Each job rests on two concepts of its subject, and the AI coding agent gets them wrong the way beginners do. The learner learns them by catching the mistake and explaining why it's wrong. The report at the end scores how they worked with AI on the four AI Fluency competencies, then explains each idea and what happened to it in their run.
 
-- **For learners:** three built-in software engineering projects, each playable as product lead (no code) or tech lead (the pull request). They can also have a project written for their own background, subject and level, or follow a learning path of three.
+- **For learners:** three built-in software engineering projects, each playable as product lead (no code) or tech lead (the pull request), and a statistics project for nursing students with an AI analyst instead of a coding agent. They can also have a project written for their own background, subject and level.
 - **For administrators:** every account with its role, making accounts instructors, and an overview of how the platform is used.
 - **For instructors:** classes joined with a code, assigned projects, and each student's progress, concepts and teach-back notes. They can also create projects from their own teaching material, customise existing ones with AI and edit the words by hand.
 
@@ -81,6 +81,7 @@ A run usually makes 4 to 6 requests (about half the interview questions, plus th
 |---|---|
 | Harbour Clinic booking board (two tracks, four code versions, several endings) | Done |
 | Tidewater Swim School (regression testing, keeping secrets out of code) and ParcelPal (idempotency, backward compatibility), written as drafts with both roles: product lead reviews behaviour, tech lead reviews the pull request | Done |
+| Ward 4B Infection Audit (rates vs raw counts, confounding variables): a statistics job with an AI analyst, product lead only, from the generator's example draft | Done |
 | macOS-style desktop with guided steps, one-by-one mail and sound cues | Done |
 | Public home page with the product tour, and the projects page | Done |
 | Saved runs, restart, sign-in with GitHub or a magic link | Done |
@@ -88,7 +89,6 @@ A run usually makes 4 to 6 requests (about half the interview questions, plus th
 | Two concepts per project, Cody's mistakes built on their misconceptions, teach-back graded in Review | Done |
 | Report section on the ideas the job depended on, with explanation, analogy and the learner's note | Done |
 | Learner profile (background and level), saved and filled in next time | Done |
-| Learning paths: three generated projects on one subject, two new ideas each, from the learner's level up | Done |
 | Evaluator for free text | Gemini, with a keyword fallback (see above) |
 | Client trust that a well-run project can raise to 10, explained in the report | Done |
 | Admin page: accounts and roles (student ⇄ instructor), platform overview and AI requests in the last 24 hours | Done |
@@ -132,7 +132,7 @@ src/
     (sim)/projects/[id]/     the full-screen desktop for one project
     api/projects/[id]/       start a run and apply each move
     api/projects/generate/   write a project with the AI
-    api/paths/               plan a learning path, and create each step's project
+    api/paths/               learning paths (kept, not offered in the UI)
     api/classes/             create a class, join with a code, assign projects, remove a student
     api/teach/projects/      instructors: create or customise a project with the AI, save hand edits
     api/admin/users/[id]/    administrators: change an account's role
@@ -219,7 +219,7 @@ AI can write a new project for any domain, inside the same fixed structure, so a
 
 In the app, signed-in users create one at **/projects/new**: who they are ("About you", saved for next time), a subject and their level, and optionally the job. The field comes from the learner's background. It's saved in `generated_projects`, private to its owner, and appears under "Your projects" on `/projects`. It plays on the same desktop, whose wording (cast, mails, guide, the assistant's name) comes from the project. The table gives browsers the listing columns only; the draft, which holds the hidden facts, is read by the server after an access check.
 
-**Learning paths** (`path.ts`): the same form can plan a path instead, three projects on one subject with six different concepts, never getting easier, starting at the learner's level. The plan is written with the play-time models in a few seconds. Each step's project is generated only when the learner reaches it.
+**Learning paths** (`path.ts`, `/paths`, `api/paths`): three projects on one subject, planned up front and generated step by step. The code is kept, but the create form no longer offers it; it creates single projects only.
 
 **Instructors** (`/teach/projects`) can create a project from their own teaching material (up to 4,000 characters, fenced in the prompt as data), or customise a built-in project or one of their own along their instructions; the result is a new copy they own. They can edit its words by hand (`edit.ts`); every save runs the checks above. A project assigned to a class can be played by that class's students and nobody else.
 
