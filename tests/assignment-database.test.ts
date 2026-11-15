@@ -34,7 +34,7 @@ test("assignment replacement rejects stale requests, rolls back failures and kee
     assert.equal((await save(0, "array['harbour-clinic']"))[0].rows[0].version, 1);
     await save(1, "array['harbour-clinic','tidewater-swim']");
     // The old [A] request arrives after [A,B]: it must not delete B.
-    await assert.rejects(save(1, "array['harbour-clinic']"), /assignments changed/);
+    await assert.rejects(save(1, "array['harbour-clinic']"), (error: unknown) => (error as {code: string}).code === "PT409");
     assert.deepEqual(await snapshot(), { version: 2, projects: ["harbour-clinic", "tidewater-swim"] });
     await assert.rejects(save(2, "array['parcelpal']", other), /ownership/);
     await assert.rejects(save(2, "array['parcelpal']", student), /ownership/);

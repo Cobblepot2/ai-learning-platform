@@ -3,7 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { SimulationState } from "@/lib/learning/simulation/engine";
 import { projectListings } from "@/lib/projects/catalog";
 import { getProjectScenario } from "@/lib/projects";
-import { isGeneratedId, listOwnGeneratedProjects, loadGeneratedScenario } from "@/lib/projects/generated/store";
+import { isGeneratedId, loadGeneratedScenario } from "@/lib/projects/generated/store";
 import { conceptResults, trackOf, type ConceptResult } from "@/lib/projects/runtime";
 import type { ProjectScenario, Track } from "@/lib/projects/types";
 import { HttpError, recordDb, redactSecrets } from "@/lib/supabase/server";
@@ -33,9 +33,28 @@ export function isAssignable(id: string) {
 }
 
 /** What this instructor can assign: the built-in projects, then the ones they made. */
-export async function assignableFor(db: SupabaseClient) {
-  const own = await listOwnGeneratedProjects(db);
-  return [...ASSIGNABLE, ...own.map(({ id, title }) => ({ id, title }))];
+export async function assignableFor(db: SupabaseClient, ownerId?: string) {
+  const unavailable = () => new HttpError(503, "Could not load the complete project list. Your choices are kept. Please retry.");
+  if (!ownerId) {
+    const { data, error } = await db.auth.getUser();
+    if (error || !data.user) throw unavailable();
+    ownerId = data.user.id;
+  }
+  // This is the assignment catalogue, not the 50-item home-page preview.
+  // Scope explicitly to the owner even if gallery RLS later permits public rows.
+  const own: { id: string; title: string }[] = [];
+  let after: string | null = null;
+  for (;;) {
+    let query = db.from("generated_projects").select("id,title").eq("owner_id", ownerId).order("id").limit(100);
+    if (after !== null) query = query.gt("id", after);
+    const { data, error } = await query;
+    if (error || !data) throw unavailable(); // Never use an empty/partial list after an error.
+    if (!data.length) break;
+    own.push(...data);
+    after = data[data.length - 1].id;
+    // Continue even with a short page: the server can cap it below 100 rows.
+  }
+  return [...ASSIGNABLE, ...own];
 }
 
 export type ClassRow = { id: string; name: string; join_code: string; created_at: string };
@@ -91,7 +110,7 @@ export async function assignProjects(db: SupabaseClient, classId: string, projec
   const wanted = [...new Set(projectIds)];
   if (wanted.some((id) => !allowed.includes(id))) throw new HttpError(400, "A selected project is no longer available. Reload the class.");
   const { data, error } = await db.rpc("replace_class_projects", { p_class_id: classId, p_expected_version: expectedVersion, p_projects: wanted });
-  if (error?.code === "40001") throw new HttpError(409, "These assignments changed. Reload to review them before saving again.");
+  if (error?.code === "PT409") throw new HttpError(409, "These assignments changed. Reload to review them before saving again.");
   if (error?.code === "42501") throw new HttpError(403, "You can only assign your own projects to your own class.");
   if (error || typeof data !== "number") throw new HttpError(503, "Could not save. Your choices are kept. Please retry.");
   return { projects: wanted, version: data };

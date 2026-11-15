@@ -33,7 +33,8 @@ begin
     where c.id = p_class_id and c.owner_id = auth.uid() for update;
   if not found then raise exception 'Class not found' using errcode = '42501'; end if;
   if current_version <> p_expected_version then
-    raise exception 'Class assignments changed; reload before saving' using errcode = '40001';
+    -- Deliberate conflict, not a retryable PostgreSQL serialization failure.
+    raise exception 'Class assignments changed; reload before saving' using errcode = 'PT409';
   end if;
 
   delete from public.class_projects where class_id = p_class_id and not (project_id = any(p_projects));

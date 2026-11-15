@@ -63,7 +63,7 @@ export function AssignProjects({ classId, projects, assigned, version }: { class
         })}
       </ul>
       <p role="status" className="mt-3 text-sm text-white/70">{status.saving ? "Saving…" : status.saved ? "Saved" : ""}</p>
-      {status.error && <div className="mt-3 text-sm text-rose-200"><p role="alert">{status.error}</p><button type="button" className="mt-2 rounded-full border border-white/30 px-4 py-2 text-white hover:bg-white/10" onClick={() => status.conflict ? window.location.reload() : saver.current!.retry()}>{status.conflict ? "Reload assignments" : "Retry save"}</button></div>}
+      {status.error && <div className="mt-3 text-sm text-rose-200"><p role="alert">{status.error}</p>{status.conflict && <p className="mt-2 text-white/70">The last save may have succeeded even if its response was lost. Reloading shows the saved assignments and discards unsaved choices in this tab.</p>}<button type="button" className="mt-2 rounded-full border border-white/30 px-4 py-2 text-white hover:bg-white/10" onClick={() => status.conflict ? window.location.reload() : saver.current!.retry()}>{status.conflict ? "Reload assignments" : "Retry save"}</button></div>}
     </div>
   );
 }

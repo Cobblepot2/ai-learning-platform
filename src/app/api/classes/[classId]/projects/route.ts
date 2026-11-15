@@ -12,7 +12,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ classId:
     const parsed = bodySchema.safeParse(await req.json().catch(() => null));
     if (!parsed.success) throw new HttpError(400, "That list of projects is not valid.");
     if (!(await loadOwnClass(db, user.id, classId))) throw new HttpError(404, "That class doesn't exist.");
-    const allowed = (await assignableFor(db)).map((project) => project.id);
+    const allowed = (await assignableFor(db, user.id)).map((project) => project.id);
     const result = await assignProjects(db, classId, parsed.data.projects, allowed, parsed.data.expectedVersion);
     return Response.json(result);
   } catch (error) {

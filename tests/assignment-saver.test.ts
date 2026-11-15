@@ -89,7 +89,10 @@ test("assignment API helper uses the atomic versioned RPC and maps stale writes 
   assert.deepEqual(calls, [["replace_class_projects", { p_class_id: "class", p_expected_version: 7, p_projects: ["A", "B"] }]]);
   await assert.rejects(assignProjects(db as never, "class", ["unavailable"], ["A"], 7), /no longer available/);
   assert.equal(calls.length, 1);
-  await assert.rejects(assignProjects({ async rpc() { return { error: { code: "40001" } }; } } as never, "class", [], [], 7), (error: unknown) => {
+  await assert.rejects(assignProjects({ async rpc() { return { error: { code: "PT409" } }; } } as never, "class", [], [], 7), (error: unknown) => {
     return (error as { status: number }).status === 409;
+  });
+  await assert.rejects(assignProjects({ async rpc() { return { error: { code: "40001" } }; } } as never, "class", [], [], 7), (error: unknown) => {
+    return (error as { status: number }).status === 503; // Real serialization failures remain retryable.
   });
 });
